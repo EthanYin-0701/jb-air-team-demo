@@ -1,0 +1,46 @@
+# PawGroove · 宠物跳舞 Web App 设计方案
+
+状态：设计提案，尚未进入开发。整理日期：2026-10-15。
+
+## 产品概念
+
+使用 Next.js 构建一个中文优先的 Web App：用户通过本地上传或 HTTPS 媒体 URL 提供宠物图片、宠物视频及参考舞蹈视频，选取片段后生成一段宠物跳舞短视频。暂定品牌名 **PawGroove / 爪爪舞台**，可在开发前调整。
+
+核心体验是「宠物素材 + 一段参考舞蹈 → 一段可预览、下载的宠物跳舞视频」。创作台提供两个独立的模型下拉菜单：提示词整理模型从 OpenRouter Models 按 **Text 输出分类筛选，再仅保留 Gemini 系列**；视频生成模型从同一目录按 **Video 输出分类筛选**。基础提示词经用户所选 Gemini 再加工并校验后，交给用户所选视频模型。结果页显示任务关联的 OpenRouter token 消耗及实际 credit 消耗明细。
+
+## 设计文件
+
+| 文件 | 内容 |
+| --- | --- |
+| [01-product.md](./01-product.md) | 产品定位、范围、用户流程、默认值和成功标准 |
+| [02-experience.md](./02-experience.md) | 页面设计、视觉规范、桌面及移动端布局、交互文案 |
+| [03-ai-feasibility.md](./03-ai-feasibility.md) | OpenRouter 分工、视频模型验证、能力降级与选型门槛 |
+| [04-architecture.md](./04-architecture.md) | Next.js 架构、异步任务、数据、接口、安全与成本控制 |
+| [05-delivery.md](./05-delivery.md) | 分阶段实施计划、验收场景、待确认事项与风险 |
+| [06-confirmed-requirements.md](./06-confirmed-requirements.md) | 用户追加的三项明确要求：Gemini 提示词再加工、多来源素材、token 与 credit 展示 |
+| [07-model-selection.md](./07-model-selection.md) | 双模型下拉菜单、OpenRouter Text / Video 分类、模型兼容及切换规则 |
+| [08-openrouter-api-verification.md](./08-openrouter-api-verification.md) | 已核验的官方分类参数、Gemini 筛选、视频目录及生成接口，附固定版本来源 |
+
+## 已知事实与规划假设
+
+- 当前仓库没有应用代码、依赖或现有设计体系。本次仅新增 plans 中的设计文档。
+- 用户明确指定 Next.js、OpenRouter、Text 分类中的 Gemini 下拉选择、Video 分类模型下拉选择、本地及 URL 图片/视频、任务 token 和 credit 明细；未指定部署平台、预算、登录或收费方式。
+- 默认按个人创作工具设计：一个主体、一份宠物图片或视频、一个短舞蹈片段、一次生成一个结果。宠物视频可由用户选择代表帧，首版优先猫和狗。
+- “跟着参考视频跳舞”与“生成一段有舞蹈感觉的视频”是不同能力。正式产品必须按实测结果表述，不能将后者包装成前者。
+- 网络视频默认指用户有权使用的可下载媒体直链；公开视频平台分享页不等于可直接导入的媒体地址。
+- 模型目录以 OpenRouter 为来源；已核实 Text / Video 使用 output_modalities 分类、Gemini 使用 arch=Gemini 筛选，并存在原生视频目录及生成接口。实时型号、账号权限、价格及动物动作迁移能力仍须验证；空列表时不虚构选项，也不自动换成目录之外的服务。
+
+## 调研边界
+
+官网和 API 直连仍受工具错误及代理 403 限制，但已成功读取 OpenRouterTeam 官方 GitHub SDK 固定提交中的 OpenAPI 与类型实现，确认分类及视频接口定义。详细来源与确定字段见接口核验文档；“定义已确认”与“线上响应尚未实测”分开记录，不承诺当前型号、价格、配额或效果。
+
+- [OpenRouter Models](https://openrouter.ai/models)：核验 Text / Video 输出分类、模型身份及可选目录。
+- [OpenRouter 文档](https://openrouter.ai/docs)：确认图像输入、视频输入、模型目录、视频调用接口、结构化输出、超时及数据策略。
+- [已读取的官方 OpenAPI 快照](https://github.com/OpenRouterTeam/typescript-sdk/blob/43d6d571164276be6052075ea33f46096c94d97f/.speakeasy/out.openapi.yaml)：分类参数、响应类型与视频路径的核验依据。
+- [Next.js 官方文档](https://nextjs.org/docs)：实施时锁定稳定版本，并核验部署环境对运行时和请求时长的限制。
+
+## 开发前的关键决策
+
+先用少量真实猫狗照片和舞蹈片段验证动作迁移。若没有供应商达到效果、成本及数据要求，则收缩为“舞蹈灵感生成”并明确说明，或暂停核心功能实现，不能仅用页面演示证明可行。
+
+建议的默认方向：趣味、轻拟人化、短片优先；保留宠物面部、毛色和识别特征，允许合理直立，但不承诺逐帧复现人体舞姿。
