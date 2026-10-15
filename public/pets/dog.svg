@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Dancing dog">
+  <g fill="#F0E8FF" stroke="#6D28D9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="28" cy="52" rx="10" ry="20" />
+    <ellipse cx="92" cy="52" rx="10" ry="20" />
+    <circle cx="60" cy="52" r="28" />
+    <ellipse cx="60" cy="68" rx="14" ry="10" />
+  </g>
+  <g fill="#20202A">
+    <circle cx="49" cy="46" r="3.5" />
+    <circle cx="71" cy="46" r="3.5" />
+    <ellipse cx="60" cy="63" rx="5" ry="4" />
+  </g>
+  <g fill="none" stroke="#20202A" stroke-width="3" stroke-linecap="round">
+    <path d="M60 67 v6" />
+    <path d="M52 75 q8 7 16 0" />
+  </g>
+  <path d="M60 80 q6 10 -2 16" fill="none" stroke="#B91C1C" stroke-width="4" stroke-linecap="round" opacity="0.7" />
+</svg>
