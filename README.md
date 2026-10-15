@@ -36,6 +36,14 @@ Run the unit tests:
 npm test
 ```
 
+### Production Start Scripts
+
+Cross-platform scripts are provided under `scripts/` to install dependencies, build, and start the production server in one step:
+
+- **Linux / macOS**: `./scripts/start.sh`
+- **Windows (Command Prompt)**: `scripts\start.bat`
+- **Windows (PowerShell)**: `./scripts/start.ps1`
+
 ## Simplifications vs. Design Docs
 
 This MVP includes several architectural simplifications compared to the full design in `plans/04-architecture.md`:
