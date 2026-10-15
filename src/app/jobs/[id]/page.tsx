@@ -105,6 +105,23 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
           <span className="text-[var(--muted)] text-sm">Job ID: {job.id}</span>
         </div>
 
+        {(job.inputs?.userPrompt || job.finalPrompt) && (
+          <div className="mb-6 space-y-1 text-sm">
+            {job.inputs?.userPrompt && (
+              <p className="text-gray-600">
+                <span className="font-semibold text-black">Your prompt: </span>
+                {job.inputs.userPrompt}
+              </p>
+            )}
+            {job.finalPrompt && (
+              <p className="text-gray-600">
+                <span className="font-semibold text-black">Refined prompt: </span>
+                {job.finalPrompt}
+              </p>
+            )}
+          </div>
+        )}
+
         {job.status === 'succeeded' && job.outputVideoPath && (
           <div className="mb-6">
             <video 
