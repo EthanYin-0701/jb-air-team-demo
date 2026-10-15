@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import SiteHeader from './components/SiteHeader';
 
 export default function CreationStudio() {
   const router = useRouter();
@@ -116,27 +117,34 @@ export default function CreationStudio() {
     }
   };
 
-  if (loadingModels) return <div className="p-8">Loading models...</div>;
+  if (loadingModels) {
+    return (
+      <div className="max-w-4xl mx-auto p-8">
+        <SiteHeader />
+        <div className="pet-card text-[var(--muted)]">Fetching the dance floor models...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-8">PawGroove Studio</h1>
-      
+      <SiteHeader />
+
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="mb-4 rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-[var(--danger)]">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <section>
+        <section className="pet-card">
           <h2 className="text-xl font-semibold mb-4">1. Asset Inputs</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium mb-1">Pet Image (URL)</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Pet Image (URL)</label>
               <input 
                 type="text" 
-                className="w-full p-2 border rounded text-black" 
+                className="pet-field" 
                 placeholder="https://..."
                 value={petInput.value}
                 onChange={(e) => setPetInput({ ...petInput, value: e.target.value })}
@@ -144,10 +152,10 @@ export default function CreationStudio() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Dance Reference (URL)</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Dance Reference (URL)</label>
               <input 
                 type="text" 
-                className="w-full p-2 border rounded text-black" 
+                className="pet-field" 
                 placeholder="https://..."
                 value={danceInput.value}
                 onChange={(e) => setDanceInput({ ...danceInput, value: e.target.value })}
@@ -157,13 +165,13 @@ export default function CreationStudio() {
           </div>
         </section>
 
-        <section>
+        <section className="pet-card">
           <h2 className="text-xl font-semibold mb-4">2. Model Selection</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium mb-1">Prompt Model (Gemini)</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Prompt Model (Gemini)</label>
               <select 
-                className="w-full p-2 border rounded text-black"
+                className="pet-field"
                 value={selectedPromptModel}
                 onChange={(e) => setSelectedPromptModel(e.target.value)}
                 required
@@ -175,9 +183,9 @@ export default function CreationStudio() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Video Model</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Video Model</label>
               <select 
-                className="w-full p-2 border rounded text-black"
+                className="pet-field"
                 value={selectedVideoModel}
                 onChange={(e) => setSelectedVideoModel(e.target.value)}
                 required
@@ -193,13 +201,13 @@ export default function CreationStudio() {
           </div>
         </section>
 
-        <section>
+        <section className="pet-card">
           <h2 className="text-xl font-semibold mb-4">3. Settings</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium mb-1">Style</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Style</label>
               <select 
-                className="w-full p-2 border rounded text-black"
+                className="pet-field"
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
               >
@@ -208,9 +216,9 @@ export default function CreationStudio() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Aspect Ratio</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Aspect Ratio</label>
               <select 
-                className="w-full p-2 border rounded text-black"
+                className="pet-field"
                 value={aspectRatio}
                 onChange={(e) => setAspectRatio(e.target.value)}
               >
@@ -219,11 +227,11 @@ export default function CreationStudio() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Duration (3-8s)</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Duration (3-8s)</label>
               <input 
                 type="number" 
                 min="3" max="8" 
-                className="w-full p-2 border rounded text-black"
+                className="pet-field"
                 value={duration}
                 onChange={(e) => setDuration(parseInt(e.target.value))}
               />
@@ -235,9 +243,9 @@ export default function CreationStudio() {
           <button 
             type="submit" 
             disabled={submitting || !selectedPromptModel || !selectedVideoModel}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400"
+            className="pet-button"
           >
-            {submitting ? 'Submitting...' : 'Generate Pet Dance Video'}
+            {submitting ? 'Submitting...' : '🐾 Generate Pet Dance Video'}
           </button>
         </div>
       </form>

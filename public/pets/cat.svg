@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Dancing cat">
+  <g fill="none" stroke="#6D28D9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M38 34 L30 14 L50 24" fill="#F0E8FF" />
+    <path d="M82 34 L90 14 L70 24" fill="#F0E8FF" />
+    <circle cx="60" cy="48" r="26" fill="#F0E8FF" />
+    <path d="M44 86 q16 14 32 0" fill="#F0E8FF" />
+    <path d="M86 92 q20 -6 14 -28" />
+  </g>
+  <g fill="#20202A">
+    <circle cx="50" cy="45" r="3.5" />
+    <circle cx="70" cy="45" r="3.5" />
+  </g>
+  <g fill="none" stroke="#20202A" stroke-width="3" stroke-linecap="round">
+    <path d="M60 54 l-4 5 h8 z" fill="#20202A" stroke="none" />
+    <path d="M56 62 q4 4 8 0" />
+    <path d="M30 50 h12 M30 58 h12 M78 50 h12 M78 58 h12" stroke-width="2" opacity="0.6" />
+  </g>
+</svg>
