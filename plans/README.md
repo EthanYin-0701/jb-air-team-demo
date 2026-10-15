@@ -19,6 +19,7 @@
 | [05-delivery.md](./05-delivery.md) | 分阶段实施计划、验收场景、待确认事项与风险 |
 | [06-confirmed-requirements.md](./06-confirmed-requirements.md) | 用户追加的三项明确要求：Gemini 提示词再加工、多来源素材、token 与 credit 展示 |
 | [07-model-selection.md](./07-model-selection.md) | 双模型下拉菜单、OpenRouter Text / Video 分类、模型兼容及切换规则 |
+| [08-openrouter-api-verification.md](./08-openrouter-api-verification.md) | 已核验的官方分类参数、Gemini 筛选、视频目录及生成接口，附固定版本来源 |
 
 ## 已知事实与规划假设
 
@@ -27,14 +28,15 @@
 - 默认按个人创作工具设计：一个主体、一份宠物图片或视频、一个短舞蹈片段、一次生成一个结果。宠物视频可由用户选择代表帧，首版优先猫和狗。
 - “跟着参考视频跳舞”与“生成一段有舞蹈感觉的视频”是不同能力。正式产品必须按实测结果表述，不能将后者包装成前者。
 - 网络视频默认指用户有权使用的可下载媒体直链；公开视频平台分享页不等于可直接导入的媒体地址。
-- 模型目录以 OpenRouter 为来源；Text / Video 按输出能力分类，不把支持视频输入的文本模型列为视频生成模型。分类元数据、实际生成接口及动物动作迁移能力仍须核验；空列表时不虚构选项，也不自动换成目录之外的服务。
+- 模型目录以 OpenRouter 为来源；已核实 Text / Video 使用 output_modalities 分类、Gemini 使用 arch=Gemini 筛选，并存在原生视频目录及生成接口。实时型号、账号权限、价格及动物动作迁移能力仍须验证；空列表时不虚构选项，也不自动换成目录之外的服务。
 
 ## 调研边界
 
-本次尝试使用联网检索和直接访问官方文档，但当前环境分别返回工具错误和网络代理 403，未能核实实时资料。因此下列链接仅作为实施前核验入口；本方案不引用其未读取的内容，不承诺当前模型可用性、接口参数、价格、配额或许可范围。
+官网和 API 直连仍受工具错误及代理 403 限制，但已成功读取 OpenRouterTeam 官方 GitHub SDK 固定提交中的 OpenAPI 与类型实现，确认分类及视频接口定义。详细来源与确定字段见接口核验文档；“定义已确认”与“线上响应尚未实测”分开记录，不承诺当前型号、价格、配额或效果。
 
 - [OpenRouter Models](https://openrouter.ai/models)：核验 Text / Video 输出分类、模型身份及可选目录。
 - [OpenRouter 文档](https://openrouter.ai/docs)：确认图像输入、视频输入、模型目录、视频调用接口、结构化输出、超时及数据策略。
+- [已读取的官方 OpenAPI 快照](https://github.com/OpenRouterTeam/typescript-sdk/blob/43d6d571164276be6052075ea33f46096c94d97f/.speakeasy/out.openapi.yaml)：分类参数、响应类型与视频路径的核验依据。
 - [Next.js 官方文档](https://nextjs.org/docs)：实施时锁定稳定版本，并核验部署环境对运行时和请求时长的限制。
 
 ## 开发前的关键决策

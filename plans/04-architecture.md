@@ -16,9 +16,9 @@ flowchart LR
   N --> Q[持久任务队列]
   Q --> W[媒体与生成 Worker]
   W --> S
-  N --> C[OpenRouter 模型目录与分类缓存]
+  N --> C[OpenRouter models 与 videos/models 目录缓存]
   W --> O[OpenRouter 用户所选 Gemini]
-  W --> V[用户所选 OpenRouter Video 模型适配层]
+  W --> V[OpenRouter 原生 videos API 与所选模型]
   V -->|经鉴权的回调，可选| N
   N -->|状态与短期下载地址| U
   W --> D
@@ -30,11 +30,11 @@ flowchart LR
 2. 用户登录后申请带单个对象、大小及过期限制的上传凭证，直传私有存储。服务端记录资产归属并再次核验真实对象大小。
 3. 链接导入走服务端资产任务：先防 SSRF 检查，再流式抓取到隔离区，限制下载字节数、重定向、超时和网络目标。
 4. Worker 校验文件签名、解码媒体、移除元数据、裁剪舞蹈片段和生成分析副本。宠物素材支持本地或 URL 图片/视频；宠物视频按用户选定时间抽取代表帧，保留源资产关联。所有媒体处理有限 CPU、内存、磁盘、像素总量与执行时长。
-5. 服务端读取 OpenRouter 目录并返回两个下拉列表：Text 输出中的 Gemini、Video 输出模型。素材就绪后生成有到期时间的报价，固定输入、两个所选模型 ID、目录快照版本、参数、能力等级、供应商配置版本及消耗上限。
+5. 服务端读取 /api/v1/models?output_modalities=text&arch=Gemini 及 /api/v1/models?output_modalities=video 的完整分页，用 /api/v1/videos/models 补充视频规格，再返回两个下拉列表。素材就绪后生成有到期时间的报价，固定输入、两个所选模型 ID、目录快照版本、参数、能力等级、供应商配置版本及消耗上限。
 6. 用户确认后，服务端验证报价仍有效、素材归属、并发上限和额度；在同一数据库事务中创建任务、预留额度及待投递事件，再由投递器推送队列。
-7. Worker 准备素材和版本化基础提示词，通过 OpenRouter 调用用户所选 Gemini 再加工，校验成功后才将最终提示词、身份图与参考舞蹈视频提交用户所选视频模型。保存每次 OpenRouter 调用 ID、所选与实际执行模型、用量及视频任务号；未知、已失效或未核实的模型 ID 阻止执行，不自动替换。
-8. 用已验证回调或定时查询推进任务；不能以浏览器是否在线决定是否继续。
-9. 取回供应商视频到自有私有存储，校验、转码和生成封面；事务性地结算额度并标记成功。
+7. Worker 准备素材和版本化基础提示词，通过 OpenRouter 调用用户所选 Gemini 再加工，校验成功后通过 POST /api/v1/videos 将最终提示词、经验证的身份图与参考视频字段提交用户所选视频模型。保存 OpenRouter 调用 ID、所选与实际执行模型、用量、视频任务 id 和可选 generation_id 的关联；未知、失效或未验证会使用参考视频的路由阻止执行，不自动替换。
+8. 默认通过 GET /api/v1/videos/{jobId} 定时查询推进任务；callback_url 虽已定义，但回调鉴权未核验前不启用。不能以浏览器是否在线决定是否继续。
+9. 通过 GET /api/v1/videos/{jobId}/content 取回视频到自有私有存储，校验、转码和生成封面；事务性地结算应用额度并标记成功，供应商费用可继续独立对账。
 10. 浏览器前台按约 3 秒轮询，逐步放慢至约 10 秒；隐藏页面暂停轮询，重新可见立即刷新。目标间隔以限流与实际时延调整。产物完成和用量结算分开跟踪：视频可预览时立即开放结果，用量待确认则后台继续补齐，结果页自动更新费用面板。
 
 API 请求只负责接受工作并返回任务标识。视频下载、FFmpeg 和长时间等待均在隔离 Worker 中执行。供应商下载链接不直接作为长期作品地址。
@@ -58,6 +58,8 @@ API 请求只负责接受工作并返回任务标识。视频下载、FFmpeg 和
 
 供应商直接返回完成可跳过中间展示阶段。最终状态不能被迟到回调覆盖；每次迁移带版本检查并记录事件。媒体清理是单独的资产状态，不将 succeeded 改回 failed；作品可另有 available / expired / deleted 状态。
 
+已确认 OpenRouter 视频状态包括 pending、in_progress、completed、failed、cancelled、expired，分别映射到内部排队、生成、产物处理及终止状态。completed 仍须本地文件校验；expired 作为无法获得产物的明确错误处理。响应定义有 cancelled 不代表存在已验证的取消方法，本次未确认取消 API 或上游幂等保证。
+
 任务进入 reconciling 后仍持有必要额度预留，页面显示“正在确认结果”，不伪装成已退款。最大排队、生成、对账期限按供应商实测设置；无解的对账进入人工处理队列，并明确用户可追踪的任务编号。
 
 取消与供应商提交之间使用同一任务版本与执行锁协调。提交前可原子取消并退款；已经进入 submitting 时须确认外部结果，不能直接标记取消成功。
@@ -69,7 +71,7 @@ API 请求只负责接受工作并返回任务标识。视频下载、FFmpeg 和
 | User | ID、认证主体、创建时间、账户状态 |
 | Asset | owner、类型、角色（宠物/舞蹈/代表帧）、来源（上传/URL）、父资产和选帧时间、私有对象键、媒体元数据、检查状态、到期及删除时间 |
 | AssetTask | 导入/预处理阶段、错误码、重试次数；原始 URL 加密或短期保存，日志脱敏 |
-| ModelCatalogSnapshot | OpenRouter 原始模型 ID、名称、输出分类、输入能力、系列依据、价格与单位、目录时间和版本；接入可用性另列，不改写来源分类 |
+| ModelCatalogSnapshot | OpenRouter 原始 id、canonical_slug、name、architecture 输入/输出、arch 查询来源、分页完整性、视频专用目录规格、价格与单位、目录时间和版本；接入可用性另列，不改写来源分类 |
 | Quote | owner、输入资产、所选提示词/视频模型 ID、目录及能力版本、选段、风格、画幅、能力等级、配置版本、费用上限、有效期 |
 | GenerationJob | owner、两个所选模型 ID 及名称快照、输入和参数快照、报价、状态、供应商任务号、配置版本、幂等键、时间戳 |
 | JobEvent | task、状态迁移、原因、关联 ID；不存完整私密输入 |
@@ -89,8 +91,8 @@ ModelInvocation 每个外部调用只记账一次；重试和修复对应新的�
 
 | 接口 | 请求重点 | 返回与职责 |
 | --- | --- | --- |
-| GET /api/models?purpose=prompt | 应用自己的查询参数，不是假定的 OpenRouter 参数 | Text 输出分类且属于 Gemini 的目录项、可选状态、原因、价格单位、更新时间及版本 |
-| GET /api/models?purpose=video | 应用自己的查询参数 | Video 输出分类目录项、输入兼容性、接入状态、规格、价格单位、更新时间及版本 |
+| GET /api/models?purpose=prompt | 应用自己的查询参数 | 上游 /api/v1/models 的 output_modalities=text、arch=Gemini 完整分页，归一化可选状态及版本 |
+| GET /api/models?purpose=video | 应用自己的查询参数 | 上游 output_modalities=video 完整分页与 /api/v1/videos/models 按准确身份匹配，返回状态、规格及版本 |
 | POST /api/assets/uploads | 角色、图片/视频类型、声明大小、MIME | 资产 ID、限定对象的短期上传凭证 |
 | POST /api/assets/{id}/complete | 已完成上传的资产 ID | 202 和预处理任务；检查对象真实大小后入队 |
 | POST /api/assets/imports | 角色、HTTPS 图片/视频 URL | 202、资产 ID、导入任务 ID；不在请求中等待下载 |
@@ -110,6 +112,8 @@ ModelInvocation 每个外部调用只记账一次；重试和修复对应新的�
 
 模型列表由服务端拉取和缓存，不允许客户端自行提交任意模型 ID 绕过筛选。报价时和任务提交时重验选择；变化后返回“模型已失效/规格已变化，请重新选择或确认”，不接受旧报价。执行前再次检查可用性，若失效则按未提交生成处理并结算已发生费用，不换型号。详细目录规则见模型选择设计。
 
+上游 HTTP 字段与 SDK 字段分开适配：HTTP 使用 output_modalities、input_modalities、frame_images、input_references、aspect_ratio 等 snake_case，SDK 对应 camelCase。通用 category 是用途分类，不用于 Text/Video。/models/user 可按应用账号偏好、隐私及 guardrail 再筛选，但不支持 arch 查询，需按 ID 与 Gemini 候选交叉核验。专用视频列表不假定支持分页，也不假定有 architecture 字段。确定依据见 [08-openrouter-api-verification.md](./08-openrouter-api-verification.md)。
+
 ## 必须落实的边界
 
 ### 密钥与隐私
@@ -128,7 +132,7 @@ OpenRouter 和生成服务密钥仅在服务端密钥管理中保存，禁止使
 
 ### 费用与重试
 
-OpenRouter 用量来自实际响应或经官方文档核实的调用明细查询，依据调用 ID 对账，不通过估算 token、价格表推算或整个账号余额差充当任务实际消耗。准确字段、查询接口、延迟、credit 单位与换算关系均待官方核验；逻辑数据模型不假装是已确认的上游 schema。
+OpenRouter 用量来自实际响应或经核实的调用明细查询，依据调用 ID 对账，不通过估算 token、价格表推算或整个账号余额差充当任务实际消耗。已确认视频响应的 usage.cost 为 USD、usage.is_byok 为 BYOK 标记，且可缺失；该视频类型没有 token 字段。文本 token 的完整对账、credit 换算和结算延迟仍需核验；不把逻辑数据模型伪称完整上游 schema。
 
 结果页按任务展示输入、输出、总 token，及 OpenRouter credit 实际扣费，按提示词模型和视频模型分别列示。两个阶段由 OpenRouter 结算时，按唯一调用 ID 将实际费用计入同一 OpenRouter 汇总，不能把视频费用再额外加一次；视频调用不提供 token 时标记不适用/未提供。若上游仅提供货币金额，须使用经核实的官方关系显示 credit 并同时保留币种，不能自定换算。独立结算费用（若后续明确启用）与应用内额度单列；只有在币种一致且来源完整时才显示合计金额。
 
@@ -137,6 +141,8 @@ OpenRouter 用量来自实际响应或经官方文档核实的调用明细查询
 预留额度是产品内账务约束，不等于供应商费用可退款。成功时结算，确认失败按事先展示的政策返还用户额度；供应商已经产生而用户未承担的费用计入应用成本。
 
 预处理、状态查询、产物下载可使用有上限的指数退避。付费生成重试只在确定未提交或供应商提供可靠幂等时进行。账号并发初始设为 1，全局并发、日预算及单次费用上限可配置；预算耗尽停止接受新的生成，不中断已扣费任务。
+
+官方 SDK 的视频提交实现包含默认重试配置；集成时对付费 POST 显式禁用未知结果自动重提，不能因为使用 SDK 就假定上游已幂等。状态查询可独立重试。
 
 ## 保留、可观测性与运维
 

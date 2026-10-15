@@ -17,13 +17,23 @@
 
 **Video 指视频输出能力。** 只支持读取、理解视频并输出文本的模型不能进入视频生成列表；具备视频输出但缺少参考动作输入能力的模型可以展示为不可选，或明确仅支持“舞蹈灵感生成”，在用户确认能力切换后才可用。
 
-Gemini 系列使用官方模型身份、名称及系列元数据核验；若没有稳定的系列字段，维护按准确模型 ID 核验的系列映射及更新时间。不能把 Google 旗下所有模型都当成 Gemini，也不能只因任意显示名称含有相同单词就信任其身份。新 Gemini 型号经身份核验后自动纳入候选，无需固定版本清单。
+Gemini 系列使用已确认的官方 arch=Gemini 筛选，结合准确模型 ID、返回的输出模态及可选 architecture.tokenizer 做一致性核验。不能把 Google 旗下所有模型都当成 Gemini，也不能只因显示名称含相同单词就信任其身份。无需维护替代官方系列筛选的固定版本清单。
 
-本次未读取到官方最新分类 schema。Text、Video 是用户指定的产品分类要求，不假定上游一定有同名 query 参数，也不预设必须从某一个 endpoint 获取完整视频目录。实施前核验 Models 页面、官方 API 和分类元数据的对应关系；若标准模型列表不覆盖 Video，需接入官方支持的对应目录，不能用视频输入字段替代或依赖脆弱的网页抓取冒充正式接口。
+已读取官方 SDK 固定提交中的 OpenAPI 与请求实现，确定以下接口映射；证据、字段及线上未实测的边界详见 [08-openrouter-api-verification.md](./08-openrouter-api-verification.md)。
+
+| 本应用菜单 | 已确认的上游请求 | 处理 |
+| --- | --- | --- |
+| 提示词 Gemini | GET /api/v1/models?output_modalities=text&arch=Gemini&offset=0&limit=1000 | 遍历完整分页，读取 data 中模型身份及 architecture 输出/输入模态 |
+| 视频分类 | GET /api/v1/models?output_modalities=video&offset=0&limit=1000 | 按 Video 输出分类取得候选，不使用 category=Video |
+| 视频能力补充 | GET /api/v1/videos/models | 按 id 或明确一致的 canonical_slug 补充视频规格；该接口不传通用列表的分页/筛选参数 |
+
+Text / Video 对应 output_modalities，不是用途参数 category。通用列表默认仅返回 text，因此视频查询必须显式传 video。HTTP 的 output_modalities 与 SDK 的 outputModalities 区分使用；arch 在两者中名称相同。线上当前型号、权限和价格尚未实测，不以定义代替成功调用。
 
 ## 目录服务与可选状态
 
-浏览器只调用应用自己的模型目录接口，服务器持有 OpenRouter 凭证并归一化目录。每项保留准确模型 ID、官方名称、输入与输出类别、系列判定依据、可确认的价格单位及目录时间。
+浏览器只调用应用自己的模型目录接口，服务器持有 OpenRouter 凭证并归一化目录。每项保留准确模型 ID、官方名称、输入与输出类别、系列筛选来源、可确认的价格单位及目录时间。通用列表按 data、links.next、total_count 管理完整分页，不能只缓存首批；视频专用列表仅按其 data 数组处理，不能要求存在 architecture 或 total_count。
+
+视频候选来自通用 Video 分类，与专用视频目录匹配后补充 supported_durations、supported_aspect_ratios、supported_resolutions、supported_sizes、supported_frame_images、generate_audio 和 pricing_skus。能力字段为 null 时视为未提供。仅在通用目录或专用目录一侧出现的条目不自动开放；记录差异并提示待验证，不按名称猜测映射。
 
 “来源分类”与“可执行状态”分别保存：通过 Text/Gemini 或 Video 目录筛选，不代表模型一定支持当前素材、地区或任务。按模型接入验证、素材类型、参考视频、时长、画幅、分辨率、价格可确认性和服务可用性进一步确定可选状态；不可选项仍可展示具体原因。
 
@@ -55,7 +65,7 @@ Gemini 系列使用官方模型身份、名称及系列元数据核验；若没�
 
 结果页显示“提示词模型”和“视频模型”的任务快照及实际执行记录，供用户核对。OpenRouter 提示词调用与视频调用若均产生其账单，按阶段列明并以唯一调用 ID 去重汇总实际 credit；视频模型不返回 token 时显示不适用/未提供，保留可用的实际费用。
 
-如果视频执行只能使用独立托管接口，本版不自动启用：必须准确映射同一目录模型、披露费用与数据接收方并经用户确认后才能开放选项。OpenRouter Video 目录为空或无可执行模型时，明确说明限制，不自动改用外部目录模型。
+视频执行默认使用已确认存在的 OpenRouter 原生 POST /api/v1/videos，并经 GET /api/v1/videos/{jobId} 查询、GET /api/v1/videos/{jobId}/content 获取产物，不默认改用独立托管接口。input_references 中的视频参考可能被不支持的提供方忽略，逐模型与路由验证后才开放“参考舞蹈生成”。Video 目录为空或无可执行模型时明确说明限制，不自动改用外部目录模型。
 
 ## 验收补充
 
@@ -66,11 +76,10 @@ Gemini 系列使用官方模型身份、名称及系列元数据核验；若没�
 5. 页面刷新可恢复有效选择，失效选择要求重选；运行中任务的模型快照不受目录刷新影响。
 6. 实际调用 ID 与两个所选模型一致，结果页按阶段显示真实用量与费用，视频费用不重复计入。
 
-## 实施前仍需核验
+## 官方定义已确认，线上能力仍需核验
 
-- OpenRouter Models 中 Text / Video 的官方定义、目录覆盖范围、API 或官方接入方式。
-- Gemini 系列身份依据与当前可用列表。
-- Video 模型的实际生成入口、异步状态、参考视频和主体图组合输入及收费数据。
-- 目录与账户可用性差异、价格单位、缓存策略和限流。
+- 已确认：通用列表 output_modalities 分类、arch 系列筛选、分页与 architecture 字段；专用视频目录、视频生成/查询/下载路径和视频 usage.cost 为 USD。
+- 仍需实测：实时可用型号、当前账号权限、两个目录的一致性、模型及路由是否真正使用参考视频、宠物质量、限流与价格。
+- 仍需另行核验：credit 换算、完整调用账单、回调鉴权、可靠幂等与取消能力；本次不因存在响应状态就推定有取消 API。
 
 本次仍仅修改设计文档，不新增应用代码、不发起付费模型请求。
