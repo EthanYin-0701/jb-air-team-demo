@@ -43,8 +43,11 @@ export interface Job {
   status: 'queued' | 'analyzing' | 'submitting' | 'provider_queued' | 'generating' | 'processing' | 'reconciling' | 'succeeded' | 'failed' | 'cancelled';
   inputs: {
     petAssetId: string;
-    danceAssetId: string;
+    /** 可选的参考舞蹈视频素材；未开启「高级选项」时不存在。 */
+    danceAssetId?: string;
     frameTimestamp?: number;
+    /** Optional free-form instruction from the user, refined by the prompt model. */
+    userPrompt?: string;
     style: string;
     aspectRatio: string;
     duration: number;

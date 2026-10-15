@@ -5,13 +5,22 @@ import { processJob } from '@/lib/worker';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { quoteId, petAssetId, danceAssetId, frameTimestamp, style, aspectRatio, duration, startTime } = body;
+    const { quoteId, petAssetId, danceAssetId, frameTimestamp, userPrompt, style, aspectRatio, duration, startTime } = body;
 
     const quote = db.quotes.get(quoteId);
     if (!quote) return NextResponse.json({ error: 'Invalid quote' }, { status: 400 });
 
     if (new Date(quote.expiresAt) < new Date()) {
       return NextResponse.json({ error: 'Quote expired' }, { status: 400 });
+    }
+
+    if (!petAssetId || !db.assets.get(petAssetId)) {
+      return NextResponse.json({ error: 'Invalid pet asset' }, { status: 400 });
+    }
+
+    // 参考舞蹈视频是可选的：仅当客户端确实带来了素材 id 时才校验与保存。
+    if (danceAssetId && !db.assets.get(danceAssetId)) {
+      return NextResponse.json({ error: 'Invalid dance reference asset' }, { status: 400 });
     }
 
     const jobId = Math.random().toString(36).substring(7);
@@ -25,6 +34,7 @@ export async function POST(request: Request) {
         petAssetId,
         danceAssetId,
         frameTimestamp,
+        userPrompt,
         style,
         aspectRatio,
         duration,

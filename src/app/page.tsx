@@ -11,6 +11,8 @@ export default function CreationStudio() {
   
   const [petInput, setPetInput] = useState({ type: 'url', value: '' });
   const [danceInput, setDanceInput] = useState({ type: 'url', value: '' });
+  /** 参考舞蹈视频默认折叠在「高级选项」里；只有填了 URL 才会作为参考素材提交。 */
+  const [showAdvanced, setShowAdvanced] = useState(false);
   
   const [selectedPromptModel, setSelectedPromptModel] = useState('');
   const [selectedVideoModel, setSelectedVideoModel] = useState('');
@@ -19,6 +21,7 @@ export default function CreationStudio() {
   const [aspectRatio, setAspectRatio] = useState('9:16');
   const [duration, setDuration] = useState(5);
   const [startTime, setStartTime] = useState(0);
+  const [userPrompt, setUserPrompt] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -54,7 +57,8 @@ export default function CreationStudio() {
     setError('');
 
     try {
-      // 1. Create assets
+      // 1. Create assets — the pet image is required, the dance reference is optional
+      // and only registered when the user filled in an advanced-options URL.
       const petRes = await fetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,18 +70,25 @@ export default function CreationStudio() {
         }),
       });
       const petAsset = await petRes.json();
+      if (!petRes.ok) throw new Error(petAsset.error || 'Failed to register the pet image');
 
-      const danceRes = await fetch('/api/assets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'video',
-          role: 'dance',
-          source: danceInput.type,
-          url: danceInput.type === 'url' ? danceInput.value : undefined,
-        }),
-      });
-      const danceAsset = await danceRes.json();
+      const danceUrl = danceInput.value.trim();
+      let danceAssetId: string | undefined;
+      if (danceUrl) {
+        const danceRes = await fetch('/api/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'video',
+            role: 'dance',
+            source: danceInput.type,
+            url: danceInput.type === 'url' ? danceUrl : undefined,
+          }),
+        });
+        const danceAsset = await danceRes.json();
+        if (!danceRes.ok) throw new Error(danceAsset.error || 'Failed to register the dance reference');
+        danceAssetId = danceAsset.id;
+      }
 
       // 2. Get Quote
       const quoteRes = await fetch('/api/quotes', {
@@ -85,13 +96,14 @@ export default function CreationStudio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           petAssetId: petAsset.id,
-          danceAssetId: danceAsset.id,
+          danceAssetId,
           promptModelId: selectedPromptModel,
           videoModelId: selectedVideoModel,
-          params: { style, aspectRatio, duration, startTime },
+          params: { userPrompt, style, aspectRatio, duration, startTime },
         }),
       });
       const quote = await quoteRes.json();
+      if (!quoteRes.ok) throw new Error(quote.error || 'Failed to create a quote');
 
       // 3. Submit Job
       const jobRes = await fetch('/api/jobs', {
@@ -100,7 +112,8 @@ export default function CreationStudio() {
         body: JSON.stringify({
           quoteId: quote.id,
           petAssetId: petAsset.id,
-          danceAssetId: danceAsset.id,
+          danceAssetId,
+          userPrompt,
           style,
           aspectRatio,
           duration,
@@ -108,6 +121,7 @@ export default function CreationStudio() {
         }),
       });
       const job = await jobRes.json();
+      if (!jobRes.ok) throw new Error(job.error || 'Failed to submit the job');
 
       router.push(`/jobs/${job.id}`);
     } catch (e: any) {
@@ -130,31 +144,53 @@ export default function CreationStudio() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <section>
-          <h2 className="text-xl font-semibold mb-4">1. Asset Inputs</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium mb-1">Pet Image (URL)</label>
-              <input 
-                type="text" 
-                className="w-full p-2 border rounded text-black" 
-                placeholder="https://..."
-                value={petInput.value}
-                onChange={(e) => setPetInput({ ...petInput, value: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Dance Reference (URL)</label>
-              <input 
-                type="text" 
-                className="w-full p-2 border rounded text-black" 
-                placeholder="https://..."
+          <h2 className="text-xl font-semibold mb-4">1. Reference Assets</h2>
+          <div>
+            <label className="block text-sm font-medium mb-1">Pet Image (URL)</label>
+            <input 
+              type="text" 
+              className="w-full p-2 border rounded text-black" 
+              placeholder="https://..."
+              value={petInput.value}
+              onChange={(e) => setPetInput({ ...petInput, value: e.target.value })}
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Required. The pet in this image is the subject of the generated video.
+            </p>
+          </div>
+
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((open) => !open)}
+              aria-expanded={showAdvanced}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              {showAdvanced ? '▾ Hide advanced options' : '▸ Advanced options: dance reference video'}
+            </button>
+          </div>
+
+          {showAdvanced && (
+            <div className="mt-4 border-l-2 border-gray-200 pl-4">
+              <label className="block text-sm font-medium mb-1" htmlFor="danceReference">
+                Dance Reference Video (URL) — optional
+              </label>
+              <input
+                id="danceReference"
+                type="text"
+                className="w-full p-2 border rounded text-black"
+                placeholder="https://.../dance.mp4"
                 value={danceInput.value}
                 onChange={(e) => setDanceInput({ ...danceInput, value: e.target.value })}
-                required
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Must be a downloadable media file (.mp4 / .mov). Video-site share pages
+                (YouTube, Bilibili, …) cannot be read by the model and the reference motion
+                would be silently ignored. Leave empty to generate from the prompt alone.
+              </p>
             </div>
-          </div>
+          )}
         </section>
 
         <section>
@@ -194,7 +230,26 @@ export default function CreationStudio() {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold mb-4">3. Settings</h2>
+          <h2 className="text-xl font-semibold mb-4">3. Prompt (Optional)</h2>
+          <label className="block text-sm font-medium mb-1" htmlFor="userPrompt">
+            Video Prompt
+          </label>
+          <textarea
+            id="userPrompt"
+            rows={4}
+            className="w-full p-2 border rounded text-black"
+            placeholder="e.g. The cat is doing a hip-hop routine on a neon-lit stage, wearing tiny sunglasses..."
+            value={userPrompt}
+            onChange={(e) => setUserPrompt(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Describe what the pet should do or how the scene should look. Leave empty to use the default dance
+            prompt. The selected Gemini model refines it before it is sent to the video model.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold mb-4">4. Settings</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium mb-1">Style</label>
