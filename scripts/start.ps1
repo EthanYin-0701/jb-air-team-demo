@@ -82,6 +82,26 @@ try {
                 $match = Select-String -Path $logFile -Pattern "https://[a-zA-Z0-9.-]*\.trycloudflare\.com" -ErrorAction SilentlyContinue | Select-Object -First 1
                 if ($match) {
                     $publicUrl = $match.Matches[0].Value
+# Start script for Windows (PowerShell).
+# Installs dependencies (if needed), builds the project, and starts the production server.
+
+$ErrorActionPreference = "Stop"
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Resolve-Path (Join-Path $ScriptDir "..")
+
+Set-Location $ProjectRoot
+
+if ([string]::IsNullOrEmpty($env:OPENROUTER_API_KEY)) {
+    foreach ($EnvFile in @(".env.local", ".env")) {
+        if (Test-Path $EnvFile) {
+            $Line = Get-Content $EnvFile | Where-Object { $_ -match '^OPENROUTER_API_KEY=' } | Select-Object -Last 1
+            if ($Line) {
+                $Value = $Line -replace '^OPENROUTER_API_KEY=', ''
+                $Value = $Value.Trim().Trim('"').Trim("'")
+                if (-not [string]::IsNullOrEmpty($Value)) {
+                    $env:OPENROUTER_API_KEY = $Value
+                    Write-Host "Loaded OPENROUTER_API_KEY from $EnvFile."
                     break
                 }
             }
