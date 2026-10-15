@@ -95,6 +95,7 @@ export async function processJob(jobId: string) {
       const videoBuffer = await videoRes.arrayBuffer();
       const fileName = `${jobId}.mp4`;
       const filePath = path.join(STORAGE_DIR, fileName);
+      fs.mkdirSync(STORAGE_DIR, { recursive: true });
       fs.writeFileSync(filePath, Buffer.from(videoBuffer));
 
       // Record invocation for video

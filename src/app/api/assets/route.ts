@@ -65,7 +65,8 @@ export async function PUT(request: Request) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const fileName = `${id}-${file.name}`;
   const filePath = path.join(STORAGE_DIR, fileName);
-  
+
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
   fs.writeFileSync(filePath, buffer);
 
   db.assets.update(id, {
