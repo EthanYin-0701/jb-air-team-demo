@@ -32,7 +32,7 @@ Do not treat these as bugs; they are deliberate scope reductions for a sandbox e
 - When adding features, prefer extending the existing job state machine (`queued -> analyzing -> submitting -> provider_queued -> generating -> processing -> succeeded/failed/cancelled`) rather than introducing parallel status fields.
 - Run `npm test` and `npm run build` before considering a change complete; both must pass. Tests must remain network-free (mock `fetch`).
 - `storage/`, `db.json`, and `.env.local` are local/dev artifacts — keep them gitignored, never commit real secrets.
-
+- Use Chinese to reply to the user
 ## Commands
 
 ```bash
