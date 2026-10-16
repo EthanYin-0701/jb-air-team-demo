@@ -126,6 +126,8 @@ export interface RefinePromptContext {
   hasPetImage: boolean;
   /** 是否真的提供了可用的参考舞蹈视频（决定提示词该不该谈「跟随参考动作」）。 */
   hasDanceReference: boolean;
+  /** 是否真的提供了可用的参考音乐（决定提示词该不该谈「踩参考音乐的节拍」）。 */
+  hasMusicReference?: boolean;
 }
 
 const DEFAULT_PET_PROMPT = 'A pet dancing along to the reference dance moves.';
@@ -150,6 +152,7 @@ export const REFINE_SYSTEM_PROMPT = [
   '- Describe subject, action, camera framing, lighting and mood, keeping it physically plausible.',
   '- Do NOT specify resolution, pixel dimensions, output size, or parameter switches such as "--ar 9:16", "--duration 5" or "--resolution". Those are controlled by the API parameters, not by the prompt.',
   '- If a pet image is given, keep that pet\'s identity and appearance. If a reference dance video is given, the pet should follow that choreography.',
+  '- If reference music is given, the pet should move in time with that music\'s rhythm. Describe the movement only; never name the track, artist or genre.',
   '- Never mention model names, platforms, settings or usage tips.',
 ].join('\n');
 
@@ -173,6 +176,9 @@ export function buildRefineMessages(context: RefinePromptContext) {
     context.hasDanceReference
       ? 'The user supplied a reference dance video; the pet must follow that choreography.'
       : 'The user supplied no reference dance video; invent a plausible dance matching the description.',
+    context.hasMusicReference
+      ? 'The user supplied reference music; the pet must dance in time with its rhythm.'
+      : 'The user supplied no reference music; do not reference any particular soundtrack.',
   ].join(' ');
 
   const request = [
@@ -272,6 +278,8 @@ export interface VideoRequestBodyOptions {
   prompt: string;
   imageUrl: string;
   referenceVideoUrl?: string;
+  /** 可选的参考音乐 URL（高级选项），作为 audio_url 参考素材提交。 */
+  referenceAudioUrl?: string;
   aspectRatio?: string;
   duration?: number;
 }
@@ -285,7 +293,8 @@ export interface VideoRequestBodyOptions {
  *   传字符串会被拒（ZodError: expected object, received string）。
  * - `input_references` 是带 discriminator 的联合，`type` 只能是
  *   `'image_url' | 'video_url' | 'audio_url'`，视频参考形如
- *   `{ type: 'video_url', video_url: { url } }`。
+ *   `{ type: 'video_url', video_url: { url } }`，音乐参考形如
+ *   `{ type: 'audio_url', audio_url: { url } }`。
  */
 export function buildVideoRequestBody(options: VideoRequestBodyOptions) {
   const body: Record<string, unknown> = {
@@ -300,13 +309,25 @@ export function buildVideoRequestBody(options: VideoRequestBodyOptions) {
     ],
   };
 
+  // 参考素材共用同一个数组；视频与音乐可以同时存在，所以按需逐个追加。
+  const inputReferences: Record<string, unknown>[] = [];
+
   if (options.referenceVideoUrl) {
-    body.input_references = [
-      {
-        type: 'video_url',
-        video_url: { url: options.referenceVideoUrl },
-      },
-    ];
+    inputReferences.push({
+      type: 'video_url',
+      video_url: { url: options.referenceVideoUrl },
+    });
+  }
+
+  if (options.referenceAudioUrl) {
+    inputReferences.push({
+      type: 'audio_url',
+      audio_url: { url: options.referenceAudioUrl },
+    });
+  }
+
+  if (inputReferences.length > 0) {
+    body.input_references = inputReferences;
   }
 
   if (options.aspectRatio) body.aspect_ratio = options.aspectRatio;
@@ -321,6 +342,7 @@ export async function generateVideo(modelId: string, prompt: string, imageUrl: s
     prompt,
     imageUrl,
     referenceVideoUrl,
+    referenceAudioUrl: options.referenceAudioUrl,
     aspectRatio: options.aspectRatio,
     duration: options.duration,
   });

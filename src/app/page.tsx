@@ -12,7 +12,8 @@ export default function CreationStudio() {
   
   const [petInput, setPetInput] = useState({ type: 'url', value: '' });
   const [danceInput, setDanceInput] = useState({ type: 'url', value: '' });
-  /** 参考舞蹈视频默认折叠在「高级选项」里；只有填了 URL 才会作为参考素材提交。 */
+  const [musicInput, setMusicInput] = useState({ type: 'url', value: '' });
+  /** 参考舞蹈视频与参考音乐默认折叠在「高级选项」里；只有填了 URL 才会作为参考素材提交。 */
   const [showAdvanced, setShowAdvanced] = useState(false);
   
   const [selectedPromptModel, setSelectedPromptModel] = useState('');
@@ -58,8 +59,8 @@ export default function CreationStudio() {
     setError('');
 
     try {
-      // 1. Create assets — the pet image is required, the dance reference is optional
-      // and only registered when the user filled in an advanced-options URL.
+      // 1. Create assets — the pet image is required, the dance and music references are
+      // optional and only registered when the user filled in an advanced-options URL.
       const petRes = await fetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,6 +92,24 @@ export default function CreationStudio() {
         danceAssetId = danceAsset.id;
       }
 
+      const musicUrl = musicInput.value.trim();
+      let musicAssetId: string | undefined;
+      if (musicUrl) {
+        const musicRes = await fetch('/api/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'audio',
+            role: 'music',
+            source: musicInput.type,
+            url: musicInput.type === 'url' ? musicUrl : undefined,
+          }),
+        });
+        const musicAsset = await musicRes.json();
+        if (!musicRes.ok) throw new Error(musicAsset.error || 'Failed to register the reference music');
+        musicAssetId = musicAsset.id;
+      }
+
       // 2. Get Quote
       const quoteRes = await fetch('/api/quotes', {
         method: 'POST',
@@ -98,6 +117,7 @@ export default function CreationStudio() {
         body: JSON.stringify({
           petAssetId: petAsset.id,
           danceAssetId,
+          musicAssetId,
           promptModelId: selectedPromptModel,
           videoModelId: selectedVideoModel,
           params: { userPrompt, style, aspectRatio, duration, startTime },
@@ -114,6 +134,7 @@ export default function CreationStudio() {
           quoteId: quote.id,
           petAssetId: petAsset.id,
           danceAssetId,
+          musicAssetId,
           userPrompt,
           style,
           aspectRatio,
@@ -152,38 +173,21 @@ export default function CreationStudio() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <section className="pet-card">
-          <h2 className="text-xl font-semibold mb-4">1. Asset Inputs</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Pet Image (URL)</label>
-              <input 
-                type="text" 
-                className="pet-field" 
-                placeholder="https://..."
-                value={petInput.value}
-                onChange={(e) => setPetInput({ ...petInput, value: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Dance Reference (URL)</label>
-              <input 
-                type="text" 
-                className="pet-field" 
-                placeholder="https://..."
-        <section>
           <h2 className="text-xl font-semibold mb-4">1. Reference Assets</h2>
           <div>
-            <label className="block text-sm font-medium mb-1">Pet Image (URL)</label>
-            <input 
-              type="text" 
-              className="w-full p-2 border rounded text-black" 
+            <label className="block text-sm font-medium mb-1 text-[var(--muted)]" htmlFor="petImage">
+              Pet Image (URL)
+            </label>
+            <input
+              id="petImage"
+              type="text"
+              className="pet-field"
               placeholder="https://..."
               value={petInput.value}
               onChange={(e) => setPetInput({ ...petInput, value: e.target.value })}
               required
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-[var(--muted)]">
               Required. The pet in this image is the subject of the generated video.
             </p>
           </div>
@@ -195,28 +199,49 @@ export default function CreationStudio() {
               aria-expanded={showAdvanced}
               className="text-sm text-blue-600 hover:underline"
             >
-              {showAdvanced ? '▾ Hide advanced options' : '▸ Advanced options: dance reference video'}
+              {showAdvanced ? '▾ Hide advanced options' : '▸ Advanced options: dance reference video & music'}
             </button>
           </div>
 
           {showAdvanced && (
-            <div className="mt-4 border-l-2 border-gray-200 pl-4">
-              <label className="block text-sm font-medium mb-1" htmlFor="danceReference">
-                Dance Reference Video (URL) — optional
-              </label>
-              <input
-                id="danceReference"
-                type="text"
-                className="w-full p-2 border rounded text-black"
-                placeholder="https://.../dance.mp4"
-                value={danceInput.value}
-                onChange={(e) => setDanceInput({ ...danceInput, value: e.target.value })}
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Must be a downloadable media file (.mp4 / .mov). Video-site share pages
-                (YouTube, Bilibili, …) cannot be read by the model and the reference motion
-                would be silently ignored. Leave empty to generate from the prompt alone.
-              </p>
+            <div className="mt-4 border-l-2 border-[var(--border)] pl-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1" htmlFor="danceReference">
+                  Dance Reference Video (URL) — optional
+                </label>
+                <input
+                  id="danceReference"
+                  type="text"
+                  className="pet-field"
+                  placeholder="https://.../dance.mp4"
+                  value={danceInput.value}
+                  onChange={(e) => setDanceInput({ ...danceInput, value: e.target.value })}
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Must be a downloadable media file (.mp4 / .mov). Video-site share pages
+                  (YouTube, Bilibili, …) cannot be read by the model and the reference motion
+                  would be silently ignored. Leave empty to generate from the prompt alone.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1" htmlFor="musicReference">
+                  Reference Music (URL) — optional
+                </label>
+                <input
+                  id="musicReference"
+                  type="text"
+                  className="pet-field"
+                  placeholder="https://.../track.mp3"
+                  value={musicInput.value}
+                  onChange={(e) => setMusicInput({ ...musicInput, value: e.target.value })}
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Must be a downloadable audio file (.mp3 / .wav / .m4a). Streaming or share
+                  pages (Spotify, YouTube, …) cannot be read by the model. When provided, the
+                  video model receives it as an audio reference and the pet dances to its rhythm.
+                </p>
+              </div>
             </div>
           )}
         </section>
@@ -258,8 +283,6 @@ export default function CreationStudio() {
         </section>
 
         <section className="pet-card">
-          <h2 className="text-xl font-semibold mb-4">3. Settings</h2>
-        <section>
           <h2 className="text-xl font-semibold mb-4">3. Prompt (Optional)</h2>
           <label className="block text-sm font-medium mb-1" htmlFor="userPrompt">
             Video Prompt
@@ -267,18 +290,18 @@ export default function CreationStudio() {
           <textarea
             id="userPrompt"
             rows={4}
-            className="w-full p-2 border rounded text-black"
+            className="pet-field"
             placeholder="e.g. The cat is doing a hip-hop routine on a neon-lit stage, wearing tiny sunglasses..."
             value={userPrompt}
             onChange={(e) => setUserPrompt(e.target.value)}
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-[var(--muted)]">
             Describe what the pet should do or how the scene should look. Leave empty to use the default dance
             prompt. The selected Gemini model refines it before it is sent to the video model.
           </p>
         </section>
 
-        <section>
+        <section className="pet-card">
           <h2 className="text-xl font-semibold mb-4">4. Settings</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>

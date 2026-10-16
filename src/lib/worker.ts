@@ -19,10 +19,15 @@ export async function processJob(jobId: string) {
     const danceAsset = job.inputs.danceAssetId
       ? db.assets.get(job.inputs.danceAssetId)
       : undefined;
+    // 参考音乐同样是可选的（高级选项）：没有 musicAssetId 时不附带音乐参考。
+    const musicAsset = job.inputs.musicAssetId
+      ? db.assets.get(job.inputs.musicAssetId)
+      : undefined;
 
     // 上传素材目前没有公网地址，只有 URL 来源的素材才真正可用（见 AGENTS.md 的已知简化）。
     const imageUrl = petAsset?.source === 'url' ? petAsset.url! : `https://example.com/placeholder-pet.jpg`;
     const danceUrl = danceAsset?.source === 'url' ? danceAsset.url : undefined;
+    const musicUrl = musicAsset?.source === 'url' ? musicAsset.url : undefined;
 
     const refineContext = {
       userPrompt: job.inputs.userPrompt,
@@ -31,6 +36,7 @@ export async function processJob(jobId: string) {
       duration: job.inputs.duration,
       hasPetImage: Boolean(petAsset),
       hasDanceReference: Boolean(danceUrl),
+      hasMusicReference: Boolean(musicUrl),
     };
 
     // 2. Submitting (Refine prompt)
@@ -69,7 +75,7 @@ export async function processJob(jobId: string) {
       finalPrompt,
       imageUrl,
       danceUrl,
-      { aspectRatio: job.inputs.aspectRatio }
+      { aspectRatio: job.inputs.aspectRatio, referenceAudioUrl: musicUrl }
     );
 
     db.jobs.update(jobId, { 

@@ -137,6 +137,48 @@ describe('Job State Machine', () => {
     );
   });
 
+  it('forwards the reference music to the video model and the refiner (ATD-2)', async () => {
+    (db.jobs.get as jest.Mock).mockReturnValue({
+      ...mockJob,
+      inputs: { ...mockJob.inputs, musicAssetId: 'a-3' },
+    });
+    (db.assets.get as jest.Mock).mockImplementation((id: string) =>
+      id === 'a-3'
+        ? { source: 'url', url: 'https://music.com/track.mp3' }
+        : { source: 'url', url: 'https://img.com' }
+    );
+
+    await runJob();
+
+    expect(openrouter.refinePrompt).toHaveBeenCalledWith(
+      'p-1',
+      expect.objectContaining({ hasMusicReference: true })
+    );
+    expect(openrouter.generateVideo).toHaveBeenCalledWith(
+      'v-1',
+      'Refined!',
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ referenceAudioUrl: 'https://music.com/track.mp3' })
+    );
+  });
+
+  it('leaves the music reference out when the advanced option is empty (ATD-2)', async () => {
+    await runJob();
+
+    expect(openrouter.refinePrompt).toHaveBeenCalledWith(
+      'p-1',
+      expect.objectContaining({ hasMusicReference: false })
+    );
+    expect(openrouter.generateVideo).toHaveBeenCalledWith(
+      'v-1',
+      'Refined!',
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ referenceAudioUrl: undefined })
+    );
+  });
+
   it('falls back to the base prompt when the refiner returns nothing usable', async () => {
     (openrouter.refinePrompt as jest.Mock).mockResolvedValue({
       refinedPrompt: '',

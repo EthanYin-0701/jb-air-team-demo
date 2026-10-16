@@ -5,7 +5,7 @@ import { processJob } from '@/lib/worker';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { quoteId, petAssetId, danceAssetId, frameTimestamp, userPrompt, style, aspectRatio, duration, startTime } = body;
+    const { quoteId, petAssetId, danceAssetId, musicAssetId, frameTimestamp, userPrompt, style, aspectRatio, duration, startTime } = body;
 
     const quote = db.quotes.get(quoteId);
     if (!quote) return NextResponse.json({ error: 'Invalid quote' }, { status: 400 });
@@ -23,6 +23,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid dance reference asset' }, { status: 400 });
     }
 
+    // 参考音乐同样是可选的高级选项，校验规则与参考舞蹈视频一致。
+    if (musicAssetId && !db.assets.get(musicAssetId)) {
+      return NextResponse.json({ error: 'Invalid music reference asset' }, { status: 400 });
+    }
+
     const jobId = Math.random().toString(36).substring(7);
     const job = db.jobs.create({
       id: jobId,
@@ -33,6 +38,7 @@ export async function POST(request: Request) {
       inputs: {
         petAssetId,
         danceAssetId,
+        musicAssetId,
         frameTimestamp,
         userPrompt,
         style,

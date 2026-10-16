@@ -11,8 +11,8 @@ export interface User {
 export interface Asset {
   id: string;
   ownerId: string;
-  type: 'image' | 'video';
-  role: 'pet' | 'dance' | 'frame';
+  type: 'image' | 'video' | 'audio';
+  role: 'pet' | 'dance' | 'frame' | 'music';
   source: 'upload' | 'url';
   url?: string;
   localPath?: string;
@@ -45,6 +45,8 @@ export interface Job {
     petAssetId: string;
     /** 可选的参考舞蹈视频素材；未开启「高级选项」时不存在。 */
     danceAssetId?: string;
+    /** 可选的参考音乐素材（高级选项）；生成视频时作为音乐参考引用。 */
+    musicAssetId?: string;
     frameTimestamp?: number;
     /** Optional free-form instruction from the user, refined by the prompt model. */
     userPrompt?: string;
