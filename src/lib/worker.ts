@@ -1,4 +1,4 @@
-import { db, Job, ModelInvocation } from './db';
+import { db } from './db';
 import { refinePrompt, generateVideo, getJobStatus, getJobContent, buildBasePrompt } from './openrouter';
 import fs from 'fs';
 import path from 'path';
@@ -40,8 +40,8 @@ export async function processJob(jobId: string) {
     let refinement: Awaited<ReturnType<typeof refinePrompt>> | null = null;
     try {
       refinement = await refinePrompt(job.promptModelId, refineContext);
-    } catch (error: any) {
-      console.error(`Prompt refinement failed for job ${jobId}, using the base prompt instead:`, error?.message);
+    } catch (error) {
+      console.error(`Prompt refinement failed for job ${jobId}, using the base prompt instead:`, error instanceof Error ? error.message : error);
     }
 
     const refinedPrompt = refinement?.refinedPrompt ?? '';
@@ -115,7 +115,7 @@ export async function processJob(jobId: string) {
       const videoBytes = await getJobContent(videoSubmission.id);
       if (videoBytes.byteLength === 0) throw new Error('Empty video content returned from provider');
       fs.writeFileSync(filePath, Buffer.from(videoBytes));
-    } catch (contentError: any) {
+    } catch (contentError) {
       // 回退：上游响应里可能带有可直接下载的 unsigned_urls
       const fallbackUrl = providerJob.unsignedUrls?.[0];
       if (!fallbackUrl) throw contentError;
@@ -143,11 +143,11 @@ export async function processJob(jobId: string) {
       outputVideoPath: `/api/storage/${fileName}`, // Internal path
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error(`Job ${jobId} failed:`, error);
     db.jobs.update(jobId, { 
       status: 'failed',
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 }

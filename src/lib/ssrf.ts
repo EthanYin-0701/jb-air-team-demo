@@ -27,12 +27,12 @@ export async function validateUrl(urlStr: string) {
   try {
     const ipv4s = await resolve4(hostname);
     ips = ips.concat(ipv4s);
-  } catch (e) {}
+  } catch {}
 
   try {
     const ipv6s = await resolve6(hostname);
     ips = ips.concat(ipv6s);
-  } catch (e) {}
+  } catch {}
 
   if (ips.length === 0) {
     throw new Error('Could not resolve hostname');

@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SiteHeader from './components/SiteHeader';
+import type { OpenRouterModel, VideoModelInfo } from '@/lib/openrouter';
 
 export default function CreationStudio() {
   const router = useRouter();
-  const [promptModels, setPromptModels] = useState<any[]>([]);
-  const [videoModels, setVideoModels] = useState<any[]>([]);
+  const [promptModels, setPromptModels] = useState<OpenRouterModel[]>([]);
+  const [videoModels, setVideoModels] = useState<(OpenRouterModel & { videoInfo?: VideoModelInfo })[]>([]);
   const [loadingModels, setLoadingModels] = useState(true);
   
   const [petInput, setPetInput] = useState({ type: 'url', value: '' });
@@ -21,7 +22,7 @@ export default function CreationStudio() {
   const [style, setStyle] = useState('keep original look');
   const [aspectRatio, setAspectRatio] = useState('9:16');
   const [duration, setDuration] = useState(5);
-  const [startTime, setStartTime] = useState(0);
+  const [startTime] = useState(0);
   const [userPrompt, setUserPrompt] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +44,7 @@ export default function CreationStudio() {
           setPromptModels(pData);
           setVideoModels(vData);
         }
-      } catch (e) {
+      } catch {
         setError('Failed to load models');
       } finally {
         setLoadingModels(false);
@@ -125,8 +126,8 @@ export default function CreationStudio() {
       if (!jobRes.ok) throw new Error(job.error || 'Failed to submit the job');
 
       router.push(`/jobs/${job.id}`);
-    } catch (e: any) {
-      setError(e.message || 'Something went wrong');
+    } catch (e) {
+      setError((e instanceof Error && e.message) || 'Something went wrong');
       setSubmitting(false);
     }
   };

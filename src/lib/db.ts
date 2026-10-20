@@ -16,7 +16,7 @@ export interface Asset {
   source: 'upload' | 'url';
   url?: string;
   localPath?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   status: 'pending' | 'ready' | 'failed';
   createdAt: string;
 }
@@ -69,7 +69,7 @@ export interface Quote {
   videoModelId: string;
   expiresAt: string;
   estimatedCost?: number;
-  params: any;
+  params: Record<string, unknown>;
 }
 
 interface Schema {

@@ -49,12 +49,12 @@ export async function POST(request: Request) {
     processJob(jobId).catch(console.error);
 
     return NextResponse.json(job);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   const jobs = db.jobs.list('local-user');
   return NextResponse.json(jobs);
 }

@@ -3,46 +3,62 @@
 import { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
 import SiteHeader from '../../components/SiteHeader';
+import type { Job, ModelInvocation } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+interface JobUsage {
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+  totalCost: number;
+  breakdown: {
+    step: ModelInvocation['step'];
+    modelId: string;
+    tokens?: number;
+    cost?: number;
+    status: string;
+  }[];
+  settlementStatus: 'settled' | 'pending';
+}
+
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [job, setJob] = useState<any>(null);
-  const [usage, setUsage] = useState<any>(null);
+  const [job, setJob] = useState<Job | null>(null);
+  const [usage, setUsage] = useState<JobUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showUsage, setShowUsage] = useState(false);
   
   const pollInterval = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchJob = async () => {
-    try {
-      const res = await fetch(`/api/jobs/${id}`);
-      if (!res.ok) throw new Error('Failed to fetch job');
-      const data = await res.json();
-      setJob(data);
-      
-      if (data.status === 'succeeded' || data.status === 'failed') {
-        if (pollInterval.current) clearInterval(pollInterval.current);
-        fetchUsage();
-      }
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUsage = async () => {
-    try {
-      const res = await fetch(`/api/jobs/${id}/usage`);
-      const data = await res.json();
-      setUsage(data);
-    } catch (e) {}
-  };
-
   useEffect(() => {
+    const fetchUsage = async () => {
+      try {
+        const res = await fetch(`/api/jobs/${id}/usage`);
+        const data = await res.json();
+        setUsage(data);
+      } catch {}
+    };
+
+    const fetchJob = async () => {
+      try {
+        const res = await fetch(`/api/jobs/${id}`);
+        if (!res.ok) throw new Error('Failed to fetch job');
+        const data = await res.json();
+        setJob(data);
+        
+        if (data.status === 'succeeded' || data.status === 'failed') {
+          if (pollInterval.current) clearInterval(pollInterval.current);
+          fetchUsage();
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchJob();
     pollInterval.current = setInterval(fetchJob, 3000);
     
@@ -70,11 +86,11 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       </div>
     );
   }
-  if (error) {
+  if (error || !job) {
     return (
       <div className="max-w-4xl mx-auto p-8">
         <SiteHeader />
-        <div className="pet-card text-[var(--danger)]">Error: {error}</div>
+        <div className="pet-card text-[var(--danger)]">Error: {error || 'Job not found'}</div>
       </div>
     );
   }
@@ -203,7 +219,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                       </tr>
                     </thead>
                     <tbody>
-                      {usage.breakdown.map((item: any, idx: number) => (
+                      {usage.breakdown.map((item, idx) => (
                         <tr key={idx} className="border-b">
                           <td className="py-2">{item.step}</td>
                           <td className="py-2">{item.modelId}</td>

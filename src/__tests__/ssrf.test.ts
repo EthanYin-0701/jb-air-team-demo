@@ -1,14 +1,16 @@
 import { validateUrl } from '../lib/ssrf';
 
 // Mock dns module
+type ResolveCallback = (err: Error | null, addresses?: string[]) => void;
+
 jest.mock('dns', () => ({
-  resolve4: (hostname: string, cb: any) => {
+  resolve4: (hostname: string, cb: ResolveCallback) => {
     if (hostname === 'localhost') cb(null, ['127.0.0.1']);
     else if (hostname === 'google.com') cb(null, ['8.8.8.8']);
     else if (hostname === 'private.com') cb(null, ['10.0.0.1']);
     else cb(new Error('DNS Error'));
   },
-  resolve6: (hostname: string, cb: any) => cb(null, []),
+  resolve6: (hostname: string, cb: ResolveCallback) => cb(null, []),
 }));
 
 describe('SSRF Guard', () => {
