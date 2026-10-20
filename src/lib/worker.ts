@@ -69,7 +69,7 @@ export async function processJob(jobId: string) {
       finalPrompt,
       imageUrl,
       danceUrl,
-      { aspectRatio: job.inputs.aspectRatio }
+      { aspectRatio: job.inputs.aspectRatio, duration: job.inputs.duration }
     );
 
     db.jobs.update(jobId, { 
