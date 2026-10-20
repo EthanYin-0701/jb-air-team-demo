@@ -1,19 +1,19 @@
-import { mergeCatalogs } from '../lib/openrouter';
+import { mergeCatalogs, OpenRouterModel, VideoModelInfo } from '../lib/openrouter';
 
 describe('Catalog Merge Logic', () => {
-  const mockPromptModels: any[] = [
+  const mockPromptModels = [
     { id: 'gemini-1', architecture: { output_modalities: ['text'] } },
     { id: 'other-1', architecture: { output_modalities: ['text'] } },
-  ];
+  ] as OpenRouterModel[];
   
-  const mockVideoModels: any[] = [
+  const mockVideoModels = [
     { id: 'video-1', architecture: { output_modalities: ['video'] } },
     { id: 'video-2', architecture: { output_modalities: ['video'] } },
-  ];
+  ] as OpenRouterModel[];
   
-  const mockVideoInfo: any[] = [
+  const mockVideoInfo = [
     { id: 'video-1', supported_durations: [5] },
-  ];
+  ] as VideoModelInfo[];
 
   it('filters prompt models correctly', () => {
     const { promptModels } = mergeCatalogs(mockPromptModels, [], []);

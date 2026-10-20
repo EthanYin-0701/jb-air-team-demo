@@ -5,7 +5,7 @@ import { getCatalogs } from '@/lib/openrouter';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { petAssetId, danceAssetId, promptModelId, videoModelId, params } = body;
+    const { promptModelId, videoModelId, params } = body;
 
     const catalogs = await getCatalogs();
     const promptModel = catalogs.promptModels.find(m => m.id === promptModelId);
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(quote);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

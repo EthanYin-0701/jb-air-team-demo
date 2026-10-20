@@ -26,7 +26,7 @@ export interface VideoModelInfo {
   supported_resolutions: string[] | null;
   supported_frame_images: boolean | null;
   generate_audio: boolean | null;
-  pricing_skus: any[] | null;
+  pricing_skus: unknown[] | null;
 }
 
 let catalogCache: {
@@ -245,8 +245,8 @@ export async function refinePrompt(modelId: string, context: RefinePromptContext
         messages: buildRefineMessages(context),
       }),
     });
-  } catch (error: any) {
-    throw new Error(`Failed to refine prompt: ${error?.message || error}`);
+  } catch (error) {
+    throw new Error(`Failed to refine prompt: ${error instanceof Error ? error.message : error}`);
   }
 
   if (!res.ok) {
@@ -315,7 +315,7 @@ export function buildVideoRequestBody(options: VideoRequestBodyOptions) {
   return body;
 }
 
-export async function generateVideo(modelId: string, prompt: string, imageUrl: string, referenceVideoUrl?: string, options: any = {}) {
+export async function generateVideo(modelId: string, prompt: string, imageUrl: string, referenceVideoUrl?: string, options: { aspectRatio?: string; duration?: number } = {}) {
   const body = buildVideoRequestBody({
     model: modelId,
     prompt,
@@ -357,9 +357,20 @@ export interface VideoJobStatus {
   usage?: { cost?: number; is_byok?: boolean };
 }
 
+/** 上游状态响应的原始形状（snake_case），仅用于 parseVideoJobStatus 内部。 */
+interface RawVideoJobStatus {
+  id: string;
+  status: string;
+  polling_url?: string;
+  generation_id?: string;
+  unsigned_urls?: unknown;
+  error?: string | { message?: string };
+  usage?: VideoJobStatus['usage'];
+}
+
 /** 归一化上游状态响应，形状不对时抛出带原文的错误，便于定位。 */
 export function parseVideoJobStatus(raw: unknown): VideoJobStatus {
-  const body = raw as Record<string, any> | null;
+  const body = raw as RawVideoJobStatus | null;
   if (!body || typeof body !== 'object' || typeof body.status !== 'string') {
     throw new Error(`Unexpected video status response: ${JSON.stringify(raw)?.slice(0, 300)}`);
   }
@@ -369,7 +380,7 @@ export function parseVideoJobStatus(raw: unknown): VideoJobStatus {
     status: body.status,
     pollingUrl: body.polling_url,
     generationId: body.generation_id,
-    unsignedUrls: Array.isArray(body.unsigned_urls) ? body.unsigned_urls : undefined,
+    unsignedUrls: Array.isArray(body.unsigned_urls) ? (body.unsigned_urls as string[]) : undefined,
     error: typeof body.error === 'string' ? body.error : body.error?.message,
     usage: body.usage,
   };
