@@ -5,6 +5,18 @@ import { useRouter } from 'next/navigation';
 import SiteHeader from './components/SiteHeader';
 import type { OpenRouterModel, VideoModelInfo } from '@/lib/openrouter';
 
+/** POSTs JSON and returns the parsed body; rejects with the API error (or the fallback message) on a non-2xx response. */
+async function postJson(url: string, body: unknown, fallbackError: string) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || fallbackError);
+  return data;
+}
+
 export default function CreationStudio() {
   const router = useRouter();
   const [promptModels, setPromptModels] = useState<OpenRouterModel[]>([]);
@@ -50,7 +62,7 @@ export default function CreationStudio() {
         setLoadingModels(false);
       }
     }
-    fetchModels();
+    void fetchModels();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,69 +73,45 @@ export default function CreationStudio() {
     try {
       // 1. Create assets — the pet image is required, the dance reference is optional
       // and only registered when the user filled in an advanced-options URL.
-      const petRes = await fetch('/api/assets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'image', // simplified
-          role: 'pet',
-          source: petInput.type,
-          url: petInput.type === 'url' ? petInput.value : undefined,
-        }),
-      });
-      const petAsset = await petRes.json();
-      if (!petRes.ok) throw new Error(petAsset.error || 'Failed to register the pet image');
+      const petAsset = await postJson('/api/assets', {
+        type: 'image', // simplified
+        role: 'pet',
+        source: petInput.type,
+        url: petInput.type === 'url' ? petInput.value : undefined,
+      }, 'Failed to register the pet image');
 
       const danceUrl = danceInput.value.trim();
       let danceAssetId: string | undefined;
       if (danceUrl) {
-        const danceRes = await fetch('/api/assets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'video',
-            role: 'dance',
-            source: danceInput.type,
-            url: danceInput.type === 'url' ? danceUrl : undefined,
-          }),
-        });
-        const danceAsset = await danceRes.json();
-        if (!danceRes.ok) throw new Error(danceAsset.error || 'Failed to register the dance reference');
+        const danceAsset = await postJson('/api/assets', {
+          type: 'video',
+          role: 'dance',
+          source: danceInput.type,
+          url: danceInput.type === 'url' ? danceUrl : undefined,
+        }, 'Failed to register the dance reference');
         danceAssetId = danceAsset.id;
       }
 
       // 2. Get Quote
-      const quoteRes = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          petAssetId: petAsset.id,
-          danceAssetId,
-          promptModelId: selectedPromptModel,
-          videoModelId: selectedVideoModel,
-          params: { userPrompt, style, aspectRatio, duration, startTime },
-        }),
-      });
-      const quote = await quoteRes.json();
-      if (!quoteRes.ok) throw new Error(quote.error || 'Failed to create a quote');
+      const quote = await postJson('/api/quotes', {
+        petAssetId: petAsset.id,
+        danceAssetId,
+        promptModelId: selectedPromptModel,
+        videoModelId: selectedVideoModel,
+        params: { userPrompt, style, aspectRatio, duration, startTime },
+      }, 'Failed to create a quote');
 
       // 3. Submit Job
-      const jobRes = await fetch('/api/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quoteId: quote.id,
-          petAssetId: petAsset.id,
-          danceAssetId,
-          userPrompt,
-          style,
-          aspectRatio,
-          duration,
-          startTime,
-        }),
-      });
-      const job = await jobRes.json();
-      if (!jobRes.ok) throw new Error(job.error || 'Failed to submit the job');
+      const job = await postJson('/api/jobs', {
+        quoteId: quote.id,
+        petAssetId: petAsset.id,
+        danceAssetId,
+        userPrompt,
+        style,
+        aspectRatio,
+        duration,
+        startTime,
+      }, 'Failed to submit the job');
 
       router.push(`/jobs/${job.id}`);
     } catch (e) {

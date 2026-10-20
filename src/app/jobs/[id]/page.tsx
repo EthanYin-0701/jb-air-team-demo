@@ -44,13 +44,16 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     const fetchJob = async () => {
       try {
         const res = await fetch(`/api/jobs/${id}`);
-        if (!res.ok) throw new Error('Failed to fetch job');
+        if (!res.ok) {
+          setError('Failed to fetch job');
+          return;
+        }
         const data = await res.json();
         setJob(data);
         
         if (data.status === 'succeeded' || data.status === 'failed') {
           if (pollInterval.current) clearInterval(pollInterval.current);
-          fetchUsage();
+          await fetchUsage();
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -59,7 +62,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       }
     };
 
-    fetchJob();
+    void fetchJob();
     pollInterval.current = setInterval(fetchJob, 3000);
     
     const handleVisibilityChange = () => {

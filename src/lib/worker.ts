@@ -5,6 +5,60 @@ import path from 'path';
 
 const STORAGE_DIR = path.join(process.cwd(), 'storage');
 
+type ProviderJob = Awaited<ReturnType<typeof getJobStatus>>;
+
+// 上游响应是顶层对象：{ id, polling_url, status, error?, unsigned_urls?, usage? }
+const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled', 'expired'];
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLL_MS = 15 * 60 * 1000;
+
+async function waitForProviderJob(jobId: string, providerJobId: string): Promise<ProviderJob> {
+  let providerJob = await getJobStatus(providerJobId);
+  const pollStartedAt = Date.now();
+
+  while (!TERMINAL_STATUSES.includes(providerJob.status)) {
+    if (Date.now() - pollStartedAt > MAX_POLL_MS) {
+      throw new Error(`Video generation timed out after ${MAX_POLL_MS / 60000} minutes (last status: ${providerJob.status})`);
+    }
+
+    db.jobs.update(jobId, {
+      status: providerJob.status === 'in_progress' ? 'generating' : 'provider_queued',
+    });
+
+    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+    providerJob = await getJobStatus(providerJobId);
+  }
+
+  if (providerJob.status !== 'completed') {
+    throw new Error(`Upstream video generation ${providerJob.status}: ${providerJob.error || 'unknown error'}`);
+  }
+
+  return providerJob;
+}
+
+async function fetchProviderContent(providerJobId: string): Promise<Uint8Array> {
+  // /content 直接返回视频字节流（video/mp4）
+  const videoBytes = await getJobContent(providerJobId);
+  if (videoBytes.byteLength === 0) throw new Error('Empty video content returned from provider');
+  return videoBytes;
+}
+
+async function downloadVideo(providerJobId: string, providerJob: ProviderJob, filePath: string) {
+  try {
+    const videoBytes = await fetchProviderContent(providerJobId);
+    fs.writeFileSync(filePath, Buffer.from(videoBytes));
+  } catch (contentError) {
+    // 回退：上游响应里可能带有可直接下载的 unsigned_urls
+    const fallbackUrl = providerJob.unsignedUrls?.[0];
+    if (!fallbackUrl) throw contentError;
+
+    const videoRes = await fetch(fallbackUrl);
+    if (!videoRes.ok) throw contentError;
+
+    fs.writeFileSync(filePath, Buffer.from(await videoRes.arrayBuffer()));
+  }
+}
+
 export async function processJob(jobId: string) {
   const job = db.jobs.get(jobId);
   if (!job) return;
@@ -78,30 +132,7 @@ export async function processJob(jobId: string) {
     });
 
     // 4. Polling for completion
-    // 上游响应是顶层对象：{ id, polling_url, status, error?, unsigned_urls?, usage? }
-    const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled', 'expired'];
-    const POLL_INTERVAL_MS = 5000;
-    const MAX_POLL_MS = 15 * 60 * 1000;
-
-    let providerJob = await getJobStatus(videoSubmission.id);
-    const pollStartedAt = Date.now();
-
-    while (!TERMINAL_STATUSES.includes(providerJob.status)) {
-      if (Date.now() - pollStartedAt > MAX_POLL_MS) {
-        throw new Error(`Video generation timed out after ${MAX_POLL_MS / 60000} minutes (last status: ${providerJob.status})`);
-      }
-
-      db.jobs.update(jobId, {
-        status: providerJob.status === 'in_progress' ? 'generating' : 'provider_queued',
-      });
-
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
-      providerJob = await getJobStatus(videoSubmission.id);
-    }
-
-    if (providerJob.status !== 'completed') {
-      throw new Error(`Upstream video generation ${providerJob.status}: ${providerJob.error || 'unknown error'}`);
-    }
+    const providerJob = await waitForProviderJob(jobId, videoSubmission.id);
 
     // 5. Processing (Fetch content)
     db.jobs.update(jobId, { status: 'processing' });
@@ -110,21 +141,7 @@ export async function processJob(jobId: string) {
     const filePath = path.join(STORAGE_DIR, fileName);
     fs.mkdirSync(STORAGE_DIR, { recursive: true });
 
-    try {
-      // /content 直接返回视频字节流（video/mp4）
-      const videoBytes = await getJobContent(videoSubmission.id);
-      if (videoBytes.byteLength === 0) throw new Error('Empty video content returned from provider');
-      fs.writeFileSync(filePath, Buffer.from(videoBytes));
-    } catch (contentError) {
-      // 回退：上游响应里可能带有可直接下载的 unsigned_urls
-      const fallbackUrl = providerJob.unsignedUrls?.[0];
-      if (!fallbackUrl) throw contentError;
-
-      const videoRes = await fetch(fallbackUrl);
-      if (!videoRes.ok) throw contentError;
-
-      fs.writeFileSync(filePath, Buffer.from(await videoRes.arrayBuffer()));
-    }
+    await downloadVideo(videoSubmission.id, providerJob, filePath);
 
     // Record invocation for video
     db.invocations.create({
