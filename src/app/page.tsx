@@ -35,8 +35,16 @@ export default function CreationStudio() {
           fetch('/api/models?purpose=prompt'),
           fetch('/api/models?purpose=video')
         ]);
-        const pData = await pRes.json();
-        const vData = await vRes.json();
+        // A crashed/timed-out serverless function returns a non-JSON body;
+        // surface the HTTP status instead of a generic parse failure.
+        const parse = async (res: Response) => {
+          try {
+            return await res.json();
+          } catch {
+            return { error: `Failed to load models (HTTP ${res.status})` };
+          }
+        };
+        const [pData, vData] = await Promise.all([parse(pRes), parse(vRes)]);
         
         if (pData.error || vData.error) {
           setError(pData.error || vData.error);
