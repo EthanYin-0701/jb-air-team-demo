@@ -146,7 +146,7 @@ export default function CreationStudio() {
       <SiteHeader />
 
       {error && (
-        <div className="mb-4 rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-[var(--danger)]">
+        <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-[var(--danger)]">
           {error}
         </div>
       )}
