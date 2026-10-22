@@ -103,7 +103,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
         <h1 className="text-2xl font-bold">Generation Result</h1>
         <Link
           href="/"
-          className="rounded-full bg-[var(--accent-soft)] px-4 py-2 text-sm font-semibold text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white"
+          className="rounded-full bg-[var(--accent-soft)] px-4 py-2 text-sm font-semibold text-[var(--primary)] hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
         >
           Generate Again
         </Link>
@@ -124,13 +124,13 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
         {(job.inputs?.userPrompt || job.finalPrompt) && (
           <div className="mb-6 space-y-1 text-sm">
             {job.inputs?.userPrompt && (
-              <p className="text-gray-600">
+              <p className="text-[var(--muted)]">
                 <span className="font-semibold text-black">Your prompt: </span>
                 {job.inputs.userPrompt}
               </p>
             )}
             {job.finalPrompt && (
-              <p className="text-gray-600">
+              <p className="text-[var(--muted)]">
                 <span className="font-semibold text-black">Refined prompt: </span>
                 {job.finalPrompt}
               </p>
@@ -149,7 +149,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
               <a 
                 href={`${job.outputVideoPath}?token=mvp-token`} 
                 download 
-                className="inline-block rounded-full bg-[var(--primary)] px-5 py-2 font-semibold text-white hover:bg-[var(--primary-hover)]"
+                className="inline-block rounded-full bg-[var(--primary)] px-5 py-2 font-semibold text-[var(--on-primary)] hover:bg-[var(--primary-hover)]"
               >
                 Download Video
               </a>
@@ -175,7 +175,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       </div>
 
       {usage && (
-        <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white">
+        <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)]">
           <button 
             onClick={() => setShowUsage(!showUsage)}
             className="w-full bg-[var(--accent-soft)]/50 p-4 flex justify-between items-center hover:bg-[var(--accent-soft)]"
@@ -185,7 +185,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
           </button>
           
           {showUsage && (
-            <div className="p-4 bg-white space-y-4">
+            <div className="p-4 bg-[var(--card)] space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-3 bg-[var(--accent-soft)]/40 rounded-xl">
                   <p className="text-xs text-[var(--muted)]">Input Tokens</p>
