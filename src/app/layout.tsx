@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import PetBackdrop from "./components/PetBackdrop";
+import { LanguageProvider } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "PawGroove - Pet Dance Video Generator",
@@ -16,7 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <PetBackdrop />
-        {children}
+        <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
   );

@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SiteHeader from './components/SiteHeader';
+import { useI18n } from '@/lib/i18n';
 import type { OpenRouterModel, VideoModelInfo } from '@/lib/openrouter';
 
 export default function CreationStudio() {
   const router = useRouter();
+  const { t } = useI18n();
   const [promptModels, setPromptModels] = useState<OpenRouterModel[]>([]);
   const [videoModels, setVideoModels] = useState<(OpenRouterModel & { videoInfo?: VideoModelInfo })[]>([]);
   const [loadingModels, setLoadingModels] = useState(true);
@@ -27,6 +29,7 @@ export default function CreationStudio() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [modelsLoadFailed, setModelsLoadFailed] = useState(false);
 
   useEffect(() => {
     async function fetchModels() {
@@ -45,7 +48,7 @@ export default function CreationStudio() {
           setVideoModels(vData);
         }
       } catch {
-        setError('Failed to load models');
+        setModelsLoadFailed(true);
       } finally {
         setLoadingModels(false);
       }
@@ -127,16 +130,18 @@ export default function CreationStudio() {
 
       router.push(`/jobs/${job.id}`);
     } catch (e) {
-      setError((e instanceof Error && e.message) || 'Something went wrong');
+      setError((e instanceof Error && e.message) || t('studio.error.generic'));
       setSubmitting(false);
     }
   };
+
+  const shownError = error || (modelsLoadFailed ? t('studio.error.loadModels') : '');
 
   if (loadingModels) {
     return (
       <div className="max-w-4xl mx-auto p-8">
         <SiteHeader />
-        <div className="pet-card text-[var(--muted)]">Fetching the dance floor models...</div>
+        <div className="pet-card text-[var(--muted)]">{t('studio.loading')}</div>
       </div>
     );
   }
@@ -145,18 +150,18 @@ export default function CreationStudio() {
     <div className="max-w-4xl mx-auto p-8">
       <SiteHeader />
 
-      {error && (
+      {shownError && (
         <div className="mb-4 rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-[var(--danger)]">
-          {error}
+          {shownError}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <section className="pet-card">
-          <h2 className="text-xl font-semibold mb-4">1. Asset Inputs</h2>
+          <h2 className="text-xl font-semibold mb-4">{t('studio.assets.title')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Pet Image (URL)</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">{t('studio.assets.petLabel')}</label>
               <input 
                 type="text" 
                 className="pet-field" 
@@ -166,23 +171,23 @@ export default function CreationStudio() {
                 required
               />
               <p className="mt-1 text-xs text-[var(--muted)]">
-                Required. The pet in this image becomes the subject of the generated video.
+                {t('studio.assets.petHint')}
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Dance Reference (optional)</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">{t('studio.assets.danceLabel')}</label>
               <button
                 type="button"
                 onClick={() => setShowAdvanced((open) => !open)}
                 aria-expanded={showAdvanced}
                 className="text-sm text-[var(--primary)] hover:underline"
               >
-                {showAdvanced ? '▾ Hide advanced options' : '▸ Advanced options: dance reference video'}
+                {showAdvanced ? t('studio.assets.hideAdvanced') : t('studio.assets.showAdvanced')}
               </button>
               {showAdvanced && (
                 <div className="mt-3 border-l-2 border-[var(--border)] pl-4">
                   <label className="block text-sm font-medium mb-1 text-[var(--muted)]" htmlFor="danceReference">
-                    Dance Reference Video (URL) — optional
+                    {t('studio.assets.danceUrlLabel')}
                   </label>
                   <input
                     id="danceReference"
@@ -193,9 +198,7 @@ export default function CreationStudio() {
                     onChange={(e) => setDanceInput({ ...danceInput, value: e.target.value })}
                   />
                   <p className="mt-1 text-xs text-[var(--muted)]">
-                    Must be a downloadable media file (.mp4 / .mov). Video-site share pages
-                    (YouTube, Bilibili, …) cannot be read by the model and the reference motion
-                    would be silently ignored. Leave empty to generate from the prompt alone.
+                    {t('studio.assets.danceHint')}
                   </p>
                 </div>
               )}
@@ -204,34 +207,34 @@ export default function CreationStudio() {
         </section>
 
         <section className="pet-card">
-          <h2 className="text-xl font-semibold mb-4">2. Model Selection</h2>
+          <h2 className="text-xl font-semibold mb-4">{t('studio.models.title')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Prompt Model (Gemini)</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">{t('studio.models.prompt')}</label>
               <select 
                 className="pet-field"
                 value={selectedPromptModel}
                 onChange={(e) => setSelectedPromptModel(e.target.value)}
                 required
               >
-                <option value="">Select a model</option>
+                <option value="">{t('studio.models.select')}</option>
                 {promptModels.map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Video Model</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">{t('studio.models.video')}</label>
               <select 
                 className="pet-field"
                 value={selectedVideoModel}
                 onChange={(e) => setSelectedVideoModel(e.target.value)}
                 required
               >
-                <option value="">Select a model</option>
+                <option value="">{t('studio.models.select')}</option>
                 {videoModels.map(m => (
                   <option key={m.id} value={m.id} disabled={!m.videoInfo}>
-                    {m.name} {!m.videoInfo ? '(missing video capability info)' : ''}
+                    {m.name} {!m.videoInfo ? t('studio.models.missingInfo') : ''}
                   </option>
                 ))}
               </select>
@@ -240,40 +243,39 @@ export default function CreationStudio() {
         </section>
 
         <section className="pet-card">
-          <h2 className="text-xl font-semibold mb-4">3. Prompt (Optional)</h2>
+          <h2 className="text-xl font-semibold mb-4">{t('studio.prompt.title')}</h2>
           <label className="block text-sm font-medium mb-1 text-[var(--muted)]" htmlFor="userPrompt">
-            Video Prompt
+            {t('studio.prompt.label')}
           </label>
           <textarea
             id="userPrompt"
             rows={4}
             className="pet-field"
-            placeholder="e.g. The cat is doing a hip-hop routine on a neon-lit stage, wearing tiny sunglasses..."
+            placeholder={t('studio.prompt.placeholder')}
             value={userPrompt}
             onChange={(e) => setUserPrompt(e.target.value)}
           />
           <p className="mt-2 text-xs text-[var(--muted)]">
-            Describe what the pet should do or how the scene should look. Leave empty to use the default
-            dance prompt. The selected Gemini model refines it before it is sent to the video model.
+            {t('studio.prompt.hint')}
           </p>
         </section>
 
         <section className="pet-card">
-          <h2 className="text-xl font-semibold mb-4">4. Settings</h2>
+          <h2 className="text-xl font-semibold mb-4">{t('studio.settings.title')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Style</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">{t('studio.settings.style')}</label>
               <select 
                 className="pet-field"
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
               >
-                <option value="keep original look">Keep Original Look</option>
-                <option value="cute cartoon">Cute Cartoon</option>
+                <option value="keep original look">{t('studio.settings.styleOriginal')}</option>
+                <option value="cute cartoon">{t('studio.settings.styleCartoon')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Aspect Ratio</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">{t('studio.settings.aspectRatio')}</label>
               <select 
                 className="pet-field"
                 value={aspectRatio}
@@ -284,7 +286,7 @@ export default function CreationStudio() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">Duration (3-8s)</label>
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">{t('studio.settings.duration')}</label>
               <input 
                 type="number" 
                 min="3" max="8" 
@@ -302,7 +304,7 @@ export default function CreationStudio() {
             disabled={submitting || !selectedPromptModel || !selectedVideoModel}
             className="pet-button"
           >
-            {submitting ? 'Submitting...' : '🐾 Generate Pet Dance Video'}
+            {submitting ? t('studio.submitting') : t('studio.submit')}
           </button>
         </div>
       </form>
