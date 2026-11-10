@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SiteHeader from './components/SiteHeader';
 import { useI18n } from '@/lib/i18n';
+import { checkDuration, supportedDurations, FALLBACK_MIN_DURATION, FALLBACK_MAX_DURATION } from '@/lib/video-params';
 import type { OpenRouterModel, VideoModelInfo } from '@/lib/openrouter';
 
 export default function CreationStudio() {
@@ -23,9 +24,18 @@ export default function CreationStudio() {
   
   const [style, setStyle] = useState('keep original look');
   const [aspectRatio, setAspectRatio] = useState('9:16');
-  const [duration, setDuration] = useState(5);
+  const [duration, setDuration] = useState<number | ''>(5);
   const [startTime] = useState(0);
   const [userPrompt, setUserPrompt] = useState('');
+
+  /**
+   * 时长跟随所选视频模型的能力：
+   * - 目录给出 supported_durations 时只能从其中选，切换模型后不兼容则清空要求重选；
+   * - 目录未提供（null）时退回兜底范围自由输入，并在界面上标注为未核验。
+   */
+  const selectedVideoModelEntry = videoModels.find((m) => m.id === selectedVideoModel);
+  const durationOptions = supportedDurations(selectedVideoModelEntry?.videoInfo);
+  const durationCheck = checkDuration(duration, durationOptions);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -64,12 +74,30 @@ export default function CreationStudio() {
     fetchModels();
   }, []);
 
+  const handleVideoModelChange = (modelId: string) => {
+    setSelectedVideoModel(modelId);
+    const options = supportedDurations(videoModels.find((m) => m.id === modelId)?.videoInfo);
+    // 已选时长与新模型不兼容时不静默改成别的长度，而是要求用户重新选择。
+    if (options.length > 0 && (duration === '' || !options.includes(duration))) {
+      setDuration('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError('');
 
     try {
+      if (!durationCheck.ok) {
+        // 服务端会用同一套规则再校验一次，这里先就地拦下并给出可读原因。
+        setError(t(durationCheck.reason === 'invalid'
+          ? 'studio.settings.durationInvalid'
+          : 'studio.settings.durationRequired'));
+        setSubmitting(false);
+        return;
+      }
+      const requestedDuration = durationCheck.duration;
       // 1. Create assets — the pet image is required, the dance reference is optional
       // and only registered when the user filled in an advanced-options URL.
       const petRes = await fetch('/api/assets', {
@@ -112,7 +140,7 @@ export default function CreationStudio() {
           danceAssetId,
           promptModelId: selectedPromptModel,
           videoModelId: selectedVideoModel,
-          params: { userPrompt, style, aspectRatio, duration, startTime },
+          params: { userPrompt, style, aspectRatio, duration: requestedDuration, startTime },
         }),
       });
       const quote = await quoteRes.json();
@@ -129,7 +157,7 @@ export default function CreationStudio() {
           userPrompt,
           style,
           aspectRatio,
-          duration,
+          duration: requestedDuration,
           startTime,
         }),
       });
@@ -238,7 +266,7 @@ export default function CreationStudio() {
               <select 
                 className="pet-field"
                 value={selectedVideoModel}
-                onChange={(e) => setSelectedVideoModel(e.target.value)}
+                onChange={(e) => handleVideoModelChange(e.target.value)}
                 required
               >
                 <option value="">{t('studio.models.select')}</option>
@@ -296,14 +324,47 @@ export default function CreationStudio() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-[var(--muted)]">{t('studio.settings.duration')}</label>
-              <input 
-                type="number" 
-                min="3" max="8" 
-                className="pet-field"
-                value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value))}
-              />
+              <label className="block text-sm font-medium mb-1 text-[var(--muted)]" htmlFor="duration">{t('studio.settings.duration')}</label>
+              {durationOptions.length > 0 ? (
+                <select
+                  id="duration"
+                  className="pet-field"
+                  value={duration === '' ? '' : String(duration)}
+                  onChange={(e) => setDuration(e.target.value === '' ? '' : Number(e.target.value))}
+                  required
+                >
+                  <option value="">{t('studio.settings.durationSelect')}</option>
+                  {durationOptions.map((option) => (
+                    <option key={option} value={option}>{option}s</option>
+                  ))}
+                </select>
+              ) : (
+                <input 
+                  id="duration"
+                  type="number" 
+                  min={FALLBACK_MIN_DURATION}
+                  max={FALLBACK_MAX_DURATION}
+                  className="pet-field"
+                  value={duration}
+                  onChange={(e) => {
+                    const next = parseInt(e.target.value, 10);
+                    setDuration(e.target.value === '' || Number.isNaN(next) ? '' : next);
+                  }}
+                  required
+                />
+              )}
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {durationOptions.length > 0
+                  ? `${t('studio.settings.durationSupported')} ${durationOptions.join(' / ')}s`
+                  : t('studio.settings.durationUnknown')}
+              </p>
+              {!durationCheck.ok && selectedVideoModel && (
+                <p className="mt-1 text-xs text-[var(--danger)]">
+                  {durationOptions.length > 0
+                    ? t('studio.settings.durationRequired')
+                    : t('studio.settings.durationInvalid')}
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -311,7 +372,7 @@ export default function CreationStudio() {
         <div className="pt-4">
           <button 
             type="submit" 
-            disabled={submitting || !selectedPromptModel || !selectedVideoModel}
+            disabled={submitting || !selectedPromptModel || !selectedVideoModel || !durationCheck.ok}
             className="pet-button"
           >
             {submitting ? t('studio.submitting') : t('studio.submit')}

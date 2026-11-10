@@ -121,6 +121,12 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
           <span className="text-[var(--muted)] text-sm">Job ID: {job.id}</span>
         </div>
 
+        {job.inputs && (
+          <p className="mb-4 text-xs text-[var(--muted)]">
+            Requested: {job.inputs.aspectRatio} · {job.inputs.duration}s · {job.inputs.style}
+          </p>
+        )}
+
         {(job.inputs?.userPrompt || job.finalPrompt) && (
           <div className="mb-6 space-y-1 text-sm">
             {job.inputs?.userPrompt && (
