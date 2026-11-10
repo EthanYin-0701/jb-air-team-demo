@@ -158,6 +158,47 @@ describe('Job State Machine', () => {
     );
   });
 
+  it('skips refinement and sends the raw prompt when optimization is disabled', async () => {
+    (db.jobs.get as jest.Mock).mockReturnValue({
+      ...mockJob,
+      promptModelId: 'none',
+      inputs: { ...mockJob.inputs, userPrompt: 'cat wearing sunglasses' },
+    });
+
+    await runJob();
+
+    expect(openrouter.refinePrompt).not.toHaveBeenCalled();
+    expect(openrouter.generateVideo).toHaveBeenCalledWith(
+      'v-1',
+      'cat wearing sunglasses',
+      expect.any(String),
+      expect.any(String),
+      expect.any(Object)
+    );
+    expect(db.invocations.create).toHaveBeenCalledWith(
+      expect.objectContaining({ step: 'refining', modelId: 'none', status: 'skipped' })
+    );
+  });
+
+  it('falls back to the base prompt when optimization is disabled but the prompt is empty', async () => {
+    (db.jobs.get as jest.Mock).mockReturnValue({
+      ...mockJob,
+      promptModelId: 'none',
+      inputs: { petAssetId: 'a-1', style: 'cartoon', aspectRatio: '1:1' },
+    });
+
+    await runJob();
+
+    expect(openrouter.refinePrompt).not.toHaveBeenCalled();
+    expect(openrouter.generateVideo).toHaveBeenCalledWith(
+      'v-1',
+      expect.stringContaining('A pet dancing along to the reference dance moves.'),
+      expect.any(String),
+      undefined,
+      expect.any(Object)
+    );
+  });
+
   it('polls the provider until it reports completed', async () => {
     (openrouter.getJobStatus as jest.Mock)
       .mockResolvedValueOnce({ id: 'v-job-1', status: 'pending' })

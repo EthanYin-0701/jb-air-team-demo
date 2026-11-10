@@ -158,9 +158,6 @@ export default function CreationStudio() {
     <div className="max-w-4xl mx-auto p-8">
       <SiteHeader />
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-[var(--danger)]">
-          {error}
       {shownError && (
         <div className="mb-4 rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-[var(--danger)]">
           {shownError}
@@ -229,6 +226,8 @@ export default function CreationStudio() {
                 required
               >
                 <option value="">{t('studio.models.select')}</option>
+                {/* 值与 openrouter.ts 的 NO_PROMPT_OPTIMIZATION 哨兵保持一致（不直接 import 以免把服务端模块打进客户端包）。 */}
+                <option value="none">{t('studio.models.noOptimization')}</option>
                 {promptModels.map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}

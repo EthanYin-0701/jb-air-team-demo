@@ -1,5 +1,5 @@
 import { db } from './db';
-import { refinePrompt, generateVideo, getJobStatus, getJobContent, buildBasePrompt } from './openrouter';
+import { refinePrompt, generateVideo, getJobStatus, getJobContent, buildBasePrompt, NO_PROMPT_OPTIMIZATION } from './openrouter';
 import fs from 'fs';
 import path from 'path';
 
@@ -36,30 +36,46 @@ export async function processJob(jobId: string) {
     // 2. Submitting (Refine prompt)
     db.jobs.update(jobId, { status: 'submitting' });
 
-    // 整理失败（接口报错或抽不出可用提示词）时降级为基础提示词，绝不把解释性文字送进视频模型。
-    let refinement: Awaited<ReturnType<typeof refinePrompt>> | null = null;
-    try {
-      refinement = await refinePrompt(job.promptModelId, refineContext);
-    } catch (error) {
-      console.error(`Prompt refinement failed for job ${jobId}, using the base prompt instead:`, error instanceof Error ? error.message : error);
+    let finalPrompt: string;
+    if (job.promptModelId === NO_PROMPT_OPTIMIZATION) {
+      // 用户选择「不优化」：直接使用输入的提示词，不调用任何提示词模型。
+      // 输入为空时仍回退到基础提示词，避免把空提示词送进视频模型导致报错。
+      finalPrompt = job.inputs.userPrompt?.trim() || buildBasePrompt(refineContext);
+
+      db.invocations.create({
+        id: Math.random().toString(36).substring(7),
+        jobId,
+        step: 'refining',
+        modelId: NO_PROMPT_OPTIMIZATION,
+        status: 'skipped',
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      // 整理失败（接口报错或抽不出可用提示词）时降级为基础提示词，绝不把解释性文字送进视频模型。
+      let refinement: Awaited<ReturnType<typeof refinePrompt>> | null = null;
+      try {
+        refinement = await refinePrompt(job.promptModelId, refineContext);
+      } catch (error) {
+        console.error(`Prompt refinement failed for job ${jobId}, using the base prompt instead:`, error instanceof Error ? error.message : error);
+      }
+
+      const refinedPrompt = refinement?.refinedPrompt ?? '';
+      const usedRefinement = refinedPrompt.length > 0;
+      finalPrompt = usedRefinement ? refinedPrompt : buildBasePrompt(refineContext);
+
+      db.invocations.create({
+        id: Math.random().toString(36).substring(7),
+        jobId,
+        step: 'refining',
+        openrouterId: refinement?.id,
+        modelId: job.promptModelId,
+        inputTokens: refinement?.usage?.prompt_tokens,
+        outputTokens: refinement?.usage?.completion_tokens,
+        totalTokens: refinement?.usage?.total_tokens,
+        status: !refinement ? 'failed' : usedRefinement ? 'succeeded' : 'fallback',
+        updatedAt: new Date().toISOString(),
+      });
     }
-
-    const refinedPrompt = refinement?.refinedPrompt ?? '';
-    const usedRefinement = refinedPrompt.length > 0;
-    const finalPrompt = usedRefinement ? refinedPrompt : buildBasePrompt(refineContext);
-
-    db.invocations.create({
-      id: Math.random().toString(36).substring(7),
-      jobId,
-      step: 'refining',
-      openrouterId: refinement?.id,
-      modelId: job.promptModelId,
-      inputTokens: refinement?.usage?.prompt_tokens,
-      outputTokens: refinement?.usage?.completion_tokens,
-      totalTokens: refinement?.usage?.total_tokens,
-      status: !refinement ? 'failed' : usedRefinement ? 'succeeded' : 'fallback',
-      updatedAt: new Date().toISOString(),
-    });
 
     db.jobs.update(jobId, { finalPrompt });
 

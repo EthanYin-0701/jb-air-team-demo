@@ -3,6 +3,7 @@ import "./globals.css";
 import PetBackdrop from "./components/PetBackdrop";
 import ThemeToggle from "./components/ThemeToggle";
 import { themeInitScript } from "@/lib/theme";
+import { LanguageProvider } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "PawGroove - Pet Dance Video Generator",
