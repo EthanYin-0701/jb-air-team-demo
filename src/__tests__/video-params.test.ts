@@ -2,6 +2,7 @@ import {
   FALLBACK_MAX_DURATION,
   FALLBACK_MIN_DURATION,
   checkDuration,
+  supportedDurationRange,
   supportedDurations,
 } from '../lib/video-params';
 
@@ -27,6 +28,21 @@ describe('supportedDurations', () => {
   });
 });
 
+describe('supportedDurationRange', () => {
+  it('summarises the capability as a range', () => {
+    expect(supportedDurationRange([2, 5, 10, 25])).toBe('2\u201325s');
+    expect(supportedDurationRange([4, 6, 8])).toBe('4\u20138s');
+  });
+
+  it('collapses a single supported length', () => {
+    expect(supportedDurationRange([5])).toBe('5s');
+  });
+
+  it('returns null when the model publishes nothing', () => {
+    expect(supportedDurationRange([])).toBeNull();
+  });
+});
+
 describe('checkDuration', () => {
   const supported = [4, 6, 8];
 
@@ -41,7 +57,7 @@ describe('checkDuration', () => {
     if (!result.ok) {
       expect(result.reason).toBe('unsupported');
       expect(result.supported).toEqual(supported);
-      expect(result.message).toContain('4, 6, 8');
+      expect(result.message).toContain('4\u20138s');
     }
   });
 

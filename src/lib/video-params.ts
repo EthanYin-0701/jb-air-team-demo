@@ -33,6 +33,18 @@ export function supportedDurations(info?: DurationCapability | null): number[] {
   return [...unique].sort((a, b) => a - b);
 }
 
+/**
+ * 把时长能力概括成一段范围文案，例如 `2–25s`；没有可选值时返回 null。
+ * 目录未提供能力时用兜底范围 `3–8s`，与自由输入的 min/max 一致。
+ */
+export function supportedDurationRange(supported: number[]): string | null {
+  const allowed = supportedDurations({ supported_durations: supported });
+  if (allowed.length > 0) {
+    return allowed.length === 1 ? `${allowed[0]}s` : `${allowed[0]}\u2013${allowed[allowed.length - 1]}s`;
+  }
+  return null;
+}
+
 export type DurationCheck =
   | { ok: true; duration: number; supported: number[] }
   | {
@@ -56,8 +68,8 @@ export function checkDuration(value: unknown, supported: number[]): DurationChec
       ok: false,
       reason: 'missing',
       message: allowed.length
-        ? `A duration is required: the selected video model supports ${allowed.join(', ')} seconds.`
-        : `A duration is required (${FALLBACK_MIN_DURATION}-${FALLBACK_MAX_DURATION} seconds).`,
+        ? `A duration is required: the selected video model supports ${supportedDurationRange(allowed)}.`
+        : `A duration is required (${FALLBACK_MIN_DURATION}\u2013${FALLBACK_MAX_DURATION}s).`,
       supported: allowed,
     };
   }
@@ -77,7 +89,7 @@ export function checkDuration(value: unknown, supported: number[]): DurationChec
       return {
         ok: false,
         reason: 'unsupported',
-        message: `Duration ${duration}s is not supported by the selected video model (supported: ${allowed.join(', ')} seconds).`,
+        message: `Duration ${duration}s is not supported by the selected video model (supported: ${supportedDurationRange(allowed)}).`,
         supported: allowed,
       };
     }
@@ -88,7 +100,7 @@ export function checkDuration(value: unknown, supported: number[]): DurationChec
     return {
       ok: false,
       reason: 'unsupported',
-      message: `Duration ${duration}s is outside the ${FALLBACK_MIN_DURATION}-${FALLBACK_MAX_DURATION} second range.`,
+      message: `Duration ${duration}s is outside the ${FALLBACK_MIN_DURATION}\u2013${FALLBACK_MAX_DURATION}s range.`,
       supported: allowed,
     };
   }

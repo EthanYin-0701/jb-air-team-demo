@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SiteHeader from './components/SiteHeader';
 import { useI18n } from '@/lib/i18n';
-import { checkDuration, supportedDurations, FALLBACK_MIN_DURATION, FALLBACK_MAX_DURATION } from '@/lib/video-params';
+import { checkDuration, supportedDurations, supportedDurationRange, FALLBACK_MIN_DURATION, FALLBACK_MAX_DURATION } from '@/lib/video-params';
 import type { OpenRouterModel, VideoModelInfo } from '@/lib/openrouter';
 
 export default function CreationStudio() {
@@ -35,6 +35,8 @@ export default function CreationStudio() {
    */
   const selectedVideoModelEntry = videoModels.find((m) => m.id === selectedVideoModel);
   const durationOptions = supportedDurations(selectedVideoModelEntry?.videoInfo);
+  /** 选项下方的范围提示，例如 `2\u201325s`。 */
+  const durationRange = supportedDurationRange(durationOptions);
   const durationCheck = checkDuration(duration, durationOptions);
 
   const [submitting, setSubmitting] = useState(false);
@@ -354,8 +356,8 @@ export default function CreationStudio() {
                 />
               )}
               <p className="mt-1 text-xs text-[var(--muted)]">
-                {durationOptions.length > 0
-                  ? `${t('studio.settings.durationSupported')} ${durationOptions.join(' / ')}s`
+                {durationRange
+                  ? `${t('studio.settings.durationSupported')} ${durationRange}`
                   : t('studio.settings.durationUnknown')}
               </p>
               {!durationCheck.ok && selectedVideoModel && (
