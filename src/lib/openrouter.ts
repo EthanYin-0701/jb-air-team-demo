@@ -1,5 +1,11 @@
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
 
+/**
+ * 「不优化」哨兵值：作为提示词模型被选中时，跳过 Gemini 提示词整理，
+ * 直接把用户输入的提示词提交给视频模型。前端下拉框的对应 option 也使用该值。
+ */
+export const NO_PROMPT_OPTIMIZATION = 'none';
+
 export interface OpenRouterModel {
   id: string;
   name: string;
