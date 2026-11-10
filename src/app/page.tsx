@@ -150,6 +150,9 @@ export default function CreationStudio() {
     <div className="max-w-4xl mx-auto p-8">
       <SiteHeader />
 
+      {error && (
+        <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-[var(--danger)]">
+          {error}
       {shownError && (
         <div className="mb-4 rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-[var(--danger)]">
           {shownError}
