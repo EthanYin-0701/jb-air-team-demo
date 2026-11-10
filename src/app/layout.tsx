@@ -21,8 +21,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <PetBackdrop />
-        <ThemeToggle />
-        {children}
+        <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
   );
